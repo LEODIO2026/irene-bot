@@ -4,11 +4,7 @@ import threading
 from dotenv import load_dotenv
 from core.data_fetcher import DataFetcher
 from core.ict_engine import ICTEngine
-from core.decision_maker import DecisionMaker
-from analysis.crowd_psychology import CrowdPsychologyEngine
-from analysis.smart_money_tracker import SmartMoneyTracker
-from analysis.whale_detector import WhaleManipulationDetector
-from analysis.macro_news_sensor import MacroNewsSensor
+from core.decision_maker_v5 import DecisionMakerV5
 from execution.risk_manager import RiskManager
 from execution.executor import Executor
 from execution.tv_bridge import TVBridge
@@ -51,24 +47,11 @@ class IreneAgent:
             self.satellite_executor = self.executor
             print("⚠️  위성 서브계정 키 미설정 → 메인계정으로 동작 (SATELLITE_API_KEY 권장)")
         
-        # ── v3 신급 모듈 초기화 ──
-        self.crowd_engine = CrowdPsychologyEngine(fetcher=self.fetcher)
-        self.smart_money = SmartMoneyTracker(fetcher=self.fetcher)
-        self.whale_detector = WhaleManipulationDetector(fetcher=self.fetcher)  # ✨ 실시간 OI 연동
-        self.news_sensor = MacroNewsSensor()
-        
-        # ── 두뇌 (자율 매매 판단 엔진) v4.2 ──
-        self.decision_maker = DecisionMaker(
+        # ── 두뇌 v5: 위성 v3 진입 + 실시간 OI/L/S 포지션 사이징 ──
+        self.decision_maker = DecisionMakerV5(
             ict_engine=self.ict_engine,
-            min_confluence=4.7,
+            fetcher=self.fetcher,
             cooldown_minutes=30,
-            enable_ltf_scalp=True,
-            ltf_scalp_min_confluence=3.5,
-            scalp_cooldown_minutes=90,
-            crowd_engine=self.crowd_engine,
-            smart_money=self.smart_money,
-            whale_detector=self.whale_detector,
-            news_sensor=self.news_sensor
         )
 
         # ── 바벨 전략: 위성(공격) 모듈 ──
@@ -113,13 +96,13 @@ class IreneAgent:
         self.bridge = TVBridge(self)
         
         mode = "TESTNET" if self.use_testnet else "MAINNET"
-        print(f"\n{'='*50}")
-        print(f"아이린(Irene): v4.2 바벨 전략 ICT + AI 트레이딩 에이전트 가동")
-        print(f"모드: {mode} | 대상: {', '.join(self.symbols)} | 리스크: {os.getenv('RISK_PER_TRADE')}")
-        print(f"🔵 코어  컨플루언스: {self.decision_maker.min_confluence}/{self.decision_maker.max_score} (LTF스캘프 활성)")
-        print(f"🔴 위성  자본: {satellite_capital:.0f}U | 레버리지 최대 {int(os.getenv('SATELLITE_MAX_LEV', 20))}배 | RR 3:1+")
-        print(f"신급 모듈: 🧠군중심리 | 💎스마트머니 | 🐙세력감지 | 📰매크로뉴스")
-        print(f"{'='*50}\n")
+        print(f"\n{'='*60}")
+        print(f"아이린(Irene): v5 바벨 전략 ICT 트레이딩 에이전트 가동")
+        print(f"모드: {mode} | 대상: {', '.join(self.symbols)}")
+        print(f"🔵 코어 v5: 1D BOS/MSS + 200EMA + 4H EMA + 킬존 + 스윕+FVG")
+        print(f"           리스크 1~3% (실시간 OI/L/S 기반) | RR 3:1 고정")
+        print(f"🔴 위성:   자본 {satellite_capital:.0f}U | 레버리지 최대 {int(os.getenv('SATELLITE_MAX_LEV', 20))}배 | RR 3:1+")
+        print(f"{'='*60}\n")
 
     def check_open_position(self, symbol):
         """특정 종목에 현재 열린 포지션이 있는지 확인합니다."""
@@ -152,52 +135,48 @@ class IreneAgent:
         print(f"{'─'*40}")
 
         try:
-            # 1. SL/TP 자동 계산 (ICT 구조 기반)
-            sl, tp = self.ict_engine.calculate_sl_tp(df_entry, side)
-            if not sl or not tp:
-                print(f"아이린: {symbol} SL/TP를 계산할 수 없어 진입을 포기합니다.")
+            # 1. SL = ICT 구조 기반 / TP = 고정 RR 3:1 (v5)
+            sl, _ = self.ict_engine.calculate_sl_tp(df_entry, side)
+            if not sl:
+                print(f"아이린: {symbol} SL을 계산할 수 없어 진입을 포기합니다.")
                 return
 
-            current_price = df_entry.iloc[-1]['close']
-
-            # 2. 손익비(R:R) 검증
-            risk = abs(current_price - sl)
-            reward = abs(tp - current_price)
-            if risk == 0:
-                print(f"아이린: {symbol} 리스크가 0이므로 진입을 취소합니다.")
+            current_price = float(df_entry.iloc[-1]['close'])
+            sl_dist = abs(current_price - sl)
+            if sl_dist == 0:
+                print(f"아이린: {symbol} SL 거리가 0 → 진입 취소")
                 return
 
-            rr_ratio = reward / risk
-            is_valid, rr_msg = self.risk_manager.validate_setup(rr_ratio, min_rr=1.5)
-            print(rr_msg)
-
-            if not is_valid:
-                print(f"아이린: {symbol} 손익비가 최소 기준(1.5) 미달 → 진입 취소")
+            # SL 거리 범위 검증 (0.15%~3.0%)
+            sl_dist_pct = sl_dist / current_price
+            if sl_dist_pct < 0.0015:
+                print(f"아이린: {symbol} SL 너무 타이트({sl_dist_pct*100:.2f}%) → 진입 취소 (최소 0.15%)")
+                return
+            if sl_dist_pct > 0.030:
+                print(f"아이린: {symbol} SL 너무 넓음({sl_dist_pct*100:.2f}%) → 진입 취소 (최대 3.0%)")
                 return
 
-            # SL 거리 범위 검증 (0.5%~2.0%)
-            sl_dist_pct = risk / current_price
-            if sl_dist_pct < 0.005:
-                print(f"아이린: {symbol} SL이 너무 타이트({sl_dist_pct*100:.2f}%) → 진입 취소 (최소 0.5%)")
-                return
-            if sl_dist_pct > 0.020:
-                print(f"아이린: {symbol} SL이 너무 넓음({sl_dist_pct*100:.2f}%) → 진입 취소 (최대 2.0%)")
-                return
+            # TP = 고정 3:1
+            FIXED_RR = 3.0
+            tp = (current_price + sl_dist * FIXED_RR
+                  if side == 'buy'
+                  else current_price - sl_dist * FIXED_RR)
 
-            # 3. 잔고 조회 및 포지션 크기 계산
+            # 2. 잔고 조회 + 가변 리스크 (OI/L/S 점수 기반)
             balance = self.fetcher.fetch_balance('USDT')
             if balance is None or balance <= 0:
                 print(f"아이린: 잔고 확인 불가 → 진입 중단")
                 return
 
-            risk_report = self.risk_manager.calculate_position_size(balance, current_price, sl)
-            qty = risk_report['position_qty']
-            lev = max(1, min(int(risk_report['required_leverage']), 20))  # 레버리지 1~20배 제한
+            risk_pct = signal.get('risk_pct', 0.01)   # 1~3%
+            risk_amt = balance * risk_pct
+            qty      = risk_amt / sl_dist
+            lev      = max(1, min(int(current_price * qty / balance) + 1, 20))
 
-            print(f"아이린: {symbol} 잔고={balance:.2f} USDT | 수량={qty:.6f} | 레버리지={lev}배")
-            print(f"아이린: SL={sl} | TP={tp} | R:R={rr_ratio:.2f}")
+            print(f"아이린: {symbol} 잔고={balance:.2f}U | 리스크={risk_pct*100:.0f}%({risk_amt:.2f}U) | 수량={qty:.6f} | 레버리지~{lev}배")
+            print(f"아이린: SL={sl:.0f}({sl_dist_pct*100:.2f}%) | TP={tp:.0f} | RR={FIXED_RR}:1")
 
-            # 4. 주문 실행!
+            # 3. 주문 실행!
             order = self.executor.place_order(symbol, side, qty, lev, stop_loss=sl, take_profit=tp)
 
             if order:

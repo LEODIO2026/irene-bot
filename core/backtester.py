@@ -20,10 +20,10 @@ class Backtester:
         self.balance = initial_balance
         self.risk_manager = RiskManager(risk_per_trade=risk_per_trade)
         self.ict_engine = ICTEngine()
-        # 전략 튜닝 v4.2: min_confluence 4.7 (4.5는 노이즈 확인, 4.7부터 50% 승률)
+        # 전략 튜닝 v4.3: min_confluence 4.0 (4.7은 너무 보수적, 거래 빈도 저조)
         self.decision_maker = DecisionMaker(
             self.ict_engine,
-            min_confluence=4.7,
+            min_confluence=4.0,
             enable_ltf_scalp=True,
             ltf_scalp_min_confluence=3.5,
             scalp_cooldown_minutes=90,
@@ -334,7 +334,7 @@ class Backtester:
                     pass
                 elif analysis['action'] == 'buy' and h4_rsi > 75:
                     pass
-                elif not self.ict_engine.is_kill_zone(current_time=current_time)['in_kill_zone'] and analysis['confluence'] < 5.0:
+                elif not self.ict_engine.is_kill_zone(current_time=current_time)['in_kill_zone'] and analysis['confluence'] < self.decision_maker.min_confluence + 0.5:
                     pass
                 # ── [v4] 4H 모멘텀 필터 ──
                 elif len(snapshot_4h) >= 20 and not self._check_4h_momentum(snapshot_4h, analysis['action']):
@@ -390,32 +390,31 @@ class Backtester:
         else:
             return current_close < ema20
 
+    FIXED_RR = 3.0  # v4.3: 가변 RR → 고정 3:1 (위성 v3과 동일)
+
     def open_trade(self, side, entry_price, df_snapshot, entry_time, analysis):
         """
         진입 시그널 발생 시 포지션을 열고 dict를 반환합니다. (1개만 허용)
-        v4: 부분 익절 가격(partial_tp) + 가변 포지션 사이징 추가
+        v4.3: RR 고정 3:1 — SL은 ICT FVG/OB 기준, TP = entry ± SL거리×3
         """
-        sl, tp = self.ict_engine.calculate_sl_tp(df_snapshot, side)
-        if not sl or not tp: return None
+        sl, _tp_unused = self.ict_engine.calculate_sl_tp(df_snapshot, side)
+        if not sl: return None
 
         sl_dist = abs(entry_price - sl) / entry_price
-        tp_dist = abs(tp - entry_price) / entry_price
-
-        # ── 튜닝 필터 1: 최소 RR 1.5:1 보장 ──
         if sl_dist == 0: return None
-        rr = tp_dist / sl_dist
-        if rr < 1.5:
+
+        # ── SL 거리 범위 0.15%~3.0% (위성 v3과 동일) ──
+        if not (0.0015 <= sl_dist <= 0.030):
             return None
 
-        # ── 튜닝 필터 2: SL 거리 범위 0.5%~2.0% ──
-        if sl_dist < 0.005:
-            return None
-        if sl_dist > 0.020:
-            return None
+        # ── TP: 고정 RR 3:1 ──
+        if side == 'buy':
+            tp = entry_price + (entry_price - sl) * self.FIXED_RR
+        else:
+            tp = entry_price - (sl - entry_price) * self.FIXED_RR
 
-        # ── 튜닝 필터 3: 최소 TP 거리 0.5% ──
-        if tp_dist < 0.005:
-            return None
+        tp_dist = abs(tp - entry_price) / entry_price
+        rr = self.FIXED_RR
 
         risk_report = self.risk_manager.calculate_position_size(self.balance, entry_price, sl)
         qty = risk_report['position_qty']
@@ -430,7 +429,7 @@ class Backtester:
         trade = {
             'side': side, 'entry_price': entry_price, 'sl': sl, 'tp': tp,
             'qty': qty, 'entry_time': entry_time, 'status': 'open',
-            'confluence': analysis['confluence'], 'rr': round(rr, 2),
+            'confluence': analysis['confluence'], 'rr': rr,
             'scalp_mode': scalp_mode,
         }
         self.trades.append(trade)
