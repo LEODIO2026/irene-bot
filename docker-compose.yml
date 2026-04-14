@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  irene-agent:
+    # ── 이미지 빌드 ──────────────────────────────
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: irene-trading-agent:latest
+    container_name: irene_agent
+
+    # ── 재시작 정책 (NAS 재부팅 후 자동 복구) ──────
+    restart: unless-stopped
+
+    # ── 포트 매핑 (NAS포트:컨테이너포트) ────────────
+    ports:
+      - "9090:9090"   # 웹훅 수신 포트 (TradingView → NAS)
+
+    # ── 환경변수 (.env 파일에서 주입) ───────────────
+    env_file:
+      - .env
+
+    # ── 볼륨 (로그 및 소스코드 영구 저장) ────────────────
+    volumes:
+      - .:/app                  # 소스코드 볼륨 마운트 (rebuild 없이 라이브 패치)
+      - ./logs:/app/logs        # 거래 로그
+      - ./data:/app/data        # 수집 데이터 캐시
+
+    # ── 로그 설정 (NAS 저장공간 보호) ───────────────
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "7"
+
+    # ── 헬스체크 ──────────────────────────────────
+    healthcheck:
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:9090/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s

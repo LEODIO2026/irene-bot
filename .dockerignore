@@ -1,0 +1,36 @@
+# Git 무시 파일
+.git
+.gitignore
+
+# 환경변수 (보안!)
+.env
+
+# Python 캐시
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info
+
+# 가상환경
+venv/
+env/
+.venv/
+
+# 로그 및 데이터 (런타임 생성)
+logs/
+data/
+*.log
+
+# 개발 도구
+.vscode/
+.idea/
+*.swp
+
+# macOS
+.DS_Store
+
+# 테스트/임시 파일
+watch_balance.py
+report_now.py
