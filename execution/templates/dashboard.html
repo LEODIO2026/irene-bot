@@ -204,7 +204,8 @@
   </div>
 
   <div class="grid-header">
-    <div class="card"><div class="stat-title">Available Banks</div><div id="balance" class="stat-val">--</div></div>
+    <div class="card" style="border-color: rgba(129,140,248,0.3);"><div class="stat-title">🔵 Core Balance</div><div id="balance" class="stat-val" style="color:#818cf8;">--</div></div>
+    <div class="card" style="border-color: rgba(251,113,133,0.3);"><div class="stat-title">🔴 Satellite Balance</div><div id="satBalance" class="stat-val" style="color:#fb7185;">--</div><div id="satCompound" style="font-size:0.65em; color:#94a3b8; margin-top:3px;">복리 ×--</div></div>
     <div class="card"><div class="stat-title">System Heartbeat</div><div id="uptime" class="stat-val" style="color: #a78bfa;">--</div></div>
     <div class="card"><div class="stat-title">Risk Exposure</div><div id="riskPct" class="stat-val" style="color: #f472b6;">--</div></div>
     <div class="card"><div class="stat-title">😱 Fear &amp; Greed</div><div id="fgiStat" class="stat-val" style="color:#fbbf24;">--</div></div>
@@ -213,8 +214,17 @@
 
   <!-- 포지션 요약 칩 섹션 -->
   <div class="card pos-summary-panel">
-    <div class="pos-summary-title">📍 Active Positions <span id="posCount" style="color:#94a3b8">0 / 0 Loaded</span></div>
-    <div id="posSummaryGrid" class="pos-summary-grid"><div class="pos-chip" style="color:#64748b">📡 Waiting for synchronization...</div></div>
+    <div class="pos-summary-title">
+      📍 Active Positions
+      <span>
+        <span id="corePosCount" style="color:#818cf8; margin-right:12px;">🔵 Core 0</span>
+        <span id="satPosCount" style="color:#fb7185;">🔴 Satellite 0</span>
+      </span>
+    </div>
+    <div style="font-size:0.6em; color:#475569; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;">🔵 Core Account</div>
+    <div id="posSummaryGrid" class="pos-summary-grid" style="margin-bottom:10px;"><div class="pos-chip" style="color:#64748b">📡 Waiting...</div></div>
+    <div style="font-size:0.6em; color:#475569; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;">🔴 Satellite Account</div>
+    <div id="satPosSummaryGrid" class="pos-summary-grid"><div class="pos-chip" style="color:#64748b">📡 Waiting...</div></div>
   </div>
 
   <!-- 탭 시스템 -->
@@ -431,14 +441,21 @@ async function update() {
     if(Object.keys(charts).length !== d.symbols.length) initDOM(d.symbols);
     
     document.getElementById('balance').textContent = '$'+(d.balance||0).toLocaleString();
+    document.getElementById('satBalance').textContent = '$'+(d.satellite_balance||0).toLocaleString();
+    const compound = d.satellite_compound ?? 1.0;
+    const compoundEl = document.getElementById('satCompound');
+    compoundEl.textContent = '복리 ×' + compound.toFixed(2);
+    compoundEl.style.color = compound >= 2.0 ? '#34d399' : (compound >= 1.0 ? '#a78bfa' : '#f87171');
     document.getElementById('uptime').textContent = d.uptime;
     document.getElementById('riskPct').textContent = d.risk_pct+'%';
     
     // 포지션 요약 칩
     const summaryGrid = document.getElementById('posSummaryGrid');
-    const posCountEl = document.getElementById('posCount');
+    const satSummaryGrid = document.getElementById('satPosSummaryGrid');
     let activePosCount = 0;
+    let satActivePosCount = 0;
     let chipsHTML = '';
+    let satChipsHTML = '';
     
     let latestTs = 0, latestSym = '--', scanSum = 0;
     d.symbols.forEach((s, i) => {
@@ -474,18 +491,28 @@ async function update() {
         if(ts > latestTs) { latestTs = ts; latestSym = s.symbol.split('/')[0]; }
       }
 
-      // 포지션 체크
+      // 코어 포지션 체크
       if (s.position && s.position.side) {
         activePosCount++;
         const p = s.position;
         const colorCls = p.side === 'long' ? 'pos-chip-long' : 'pos-chip-short';
         const pnlSign = p.unrealized_pnl >= 0 ? '+' : '';
-        chipsHTML += `<div class="pos-chip ${colorCls}"><span>${s.symbol.split('/')[0]}</span><span>${p.side.toUpperCase()} ×${p.leverage}</span><span>${pnlSign}$${p.unrealized_pnl}</span></div>`;
+        chipsHTML += `<div class="pos-chip ${colorCls}" style="border-color:rgba(129,140,248,0.4);"><span>🔵 ${s.symbol.split('/')[0]}</span><span>${p.side.toUpperCase()} ×${p.leverage}</span><span>${pnlSign}$${p.unrealized_pnl}</span></div>`;
+      }
+      // 위성 포지션 체크
+      if (s.satellite_position && s.satellite_position.side) {
+        satActivePosCount++;
+        const sp = s.satellite_position;
+        const spColorCls = sp.side === 'long' ? 'pos-chip-long' : 'pos-chip-short';
+        const spPnlSign = sp.unrealized_pnl >= 0 ? '+' : '';
+        satChipsHTML += `<div class="pos-chip ${spColorCls}" style="border-color:rgba(251,113,133,0.4);"><span>🔴 ${s.symbol.split('/')[0]}</span><span>${sp.side.toUpperCase()} ×${sp.leverage}</span><span>${spPnlSign}$${sp.unrealized_pnl}</span></div>`;
       }
     });
-    
-    summaryGrid.innerHTML = chipsHTML || '<div class="pos-chip" style="color:#64748b">No active positions</div>';
-    posCountEl.textContent = `${activePosCount} / ${d.symbols.length} Active`;
+
+    summaryGrid.innerHTML = chipsHTML || '<div class="pos-chip" style="color:#64748b">No core positions</div>';
+    satSummaryGrid.innerHTML = satChipsHTML || '<div class="pos-chip" style="color:#64748b">No satellite positions</div>';
+    document.getElementById('corePosCount').textContent = `🔵 Core ${activePosCount}`;
+    document.getElementById('satPosCount').textContent = `🔴 Satellite ${satActivePosCount}`;
 
     document.getElementById('totalScans').textContent = scanSum;
     document.getElementById('lastScanTime').textContent = utcToKST(new Date(latestTs).toISOString());

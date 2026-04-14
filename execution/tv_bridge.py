@@ -28,11 +28,21 @@ class TVBridge:
             import time as _time
             status = self.agent.status if hasattr(self.agent, 'status') else {}
             
-            # 잔고 조회
+            # 잔고 조회 (코어 + 위성)
             try:
                 balance = self.agent.fetcher.fetch_balance('USDT') or 0
             except:
                 balance = 0
+
+            try:
+                satellite_balance = self.agent.satellite_fetcher.fetch_balance('USDT') or 0
+            except:
+                satellite_balance = 0
+
+            try:
+                satellite_compound = self.agent.satellite.compound_factor
+            except:
+                satellite_compound = 1.0
 
             # 가동 시간 계산
             started = status.get('started_at', '')
@@ -45,11 +55,16 @@ class TVBridge:
             except:
                 uptime_str = '-'
 
-            # 포지션 조회
+            # 포지션 조회 (코어 + 위성)
             try:
                 open_positions = self.agent.fetcher.fetch_positions(symbols=self.agent.symbols)
             except:
                 open_positions = {}
+
+            try:
+                satellite_positions = self.agent.satellite_fetcher.fetch_positions(symbols=self.agent.symbols)
+            except:
+                satellite_positions = {}
 
             symbols_data = []
             for sym in self.agent.symbols:
@@ -59,6 +74,7 @@ class TVBridge:
                 prev_price = sym_status.get('prev_price', 0)
                 pos = open_positions.get(sym, None)
 
+                sat_pos = satellite_positions.get(sym, None)
                 symbols_data.append({
                     'symbol': sym,
                     'price': price,
@@ -73,11 +89,14 @@ class TVBridge:
                     'scan_count': sym_status.get('scan_count', 0),
                     'last_scan': sym_status.get('last_scan', '-'),
                     'position': pos,
+                    'satellite_position': sat_pos,
                 })
 
             return jsonify({
                 'symbols': symbols_data,
                 'balance': round(balance, 2),
+                'satellite_balance': round(satellite_balance, 2),
+                'satellite_compound': round(satellite_compound, 2),
                 'trade_log': status.get('trade_log', [])[-10:],
                 'uptime': uptime_str,
                 'started_at': started,
