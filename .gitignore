@@ -32,7 +32,11 @@ strategy/equity_chart.png
 
 # macOS
 .DS_Store
+.DS_Store?
 .AppleDouble
+._*
+.Spotlight-V100
+.Trashes
 
 # IDE
 .vscode/
