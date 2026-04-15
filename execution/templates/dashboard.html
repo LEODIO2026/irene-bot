@@ -643,17 +643,39 @@ async function update() {
 
     // 거래 로그
     if (d.trade_log?.length) {
-      let html = '<table><tr><th>Time</th><th>계정</th><th>Symbol</th><th>Side</th><th>Size</th></tr>';
+      let html = '<table><tr><th>Time</th><th>계정</th><th>Symbol</th><th>Side</th><th>진입가</th><th>청산가</th><th>손익</th></tr>';
       [...d.trade_log].reverse().forEach(l => {
         const acTag = l.account === 'satellite'
           ? '<span class="t-sat">위성</span>'
+          : l.account === 'webhook'
+          ? '<span style="color:#fbbf24;font-size:.7em;font-weight:700;">웹훅</span>'
           : '<span class="t-core">코어</span>';
+
+        const entryStr = l.entry_price
+          ? '$' + Number(l.entry_price).toLocaleString(undefined, {maximumFractionDigits: 2})
+          : '-';
+        const exitStr = l.exit_price
+          ? '$' + Number(l.exit_price).toLocaleString(undefined, {maximumFractionDigits: 2})
+          : '<span style="color:var(--muted);font-size:.75em;">진행중</span>';
+
+        let pnlStr;
+        if (l.pnl !== null && l.pnl !== undefined) {
+          const pnl = Number(l.pnl);
+          const color = pnl >= 0 ? 'var(--green)' : 'var(--red)';
+          const icon  = pnl >= 0 ? '▲' : '▼';
+          pnlStr = `<span style="color:${color};font-weight:800;">${icon} ${pnl >= 0 ? '+' : ''}$${Math.abs(pnl).toFixed(2)}</span>`;
+        } else {
+          pnlStr = '<span style="color:var(--muted);font-size:.75em;">—</span>';
+        }
+
         html += `<tr>
           <td style="color:var(--muted)">${l.time}</td>
           <td>${acTag}</td>
           <td class="t-sym">${l.symbol}</td>
           <td class="${l.side?.toLowerCase()==='buy'?'t-buy':'t-sell'}">${(l.side||'').toUpperCase()}</td>
-          <td>$${l.qty}</td>
+          <td style="font-variant-numeric:tabular-nums;">${entryStr}</td>
+          <td style="font-variant-numeric:tabular-nums;">${exitStr}</td>
+          <td>${pnlStr}</td>
         </tr>`;
       });
       document.getElementById('tradeLog').innerHTML = html + '</table>';

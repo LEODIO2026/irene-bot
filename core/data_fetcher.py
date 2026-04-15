@@ -319,6 +319,33 @@ class DataFetcher:
             print(f"아이린: 포지션 조회 오류: {e}")
             return {}
 
+    def fetch_closed_pnl(self, symbol=None, limit=50):
+        """
+        Bybit closed-pnl 엔드포인트로 최근 실현 손익 목록 반환.
+        Returns list of dicts: symbol, side, qty, entry_price, exit_price, pnl, created_time
+        """
+        try:
+            params = {'category': 'linear', 'limit': limit}
+            if symbol:
+                params['symbol'] = symbol.replace('/USDT:USDT','USDT').replace('/USDT','USDT').replace('/','')
+            resp = self.exchange.privateGetV5PositionClosedPnl(params)
+            items = resp.get('result', {}).get('list', [])
+            result = []
+            for item in items:
+                result.append({
+                    'symbol':      item.get('symbol', ''),
+                    'side':        item.get('side', ''),
+                    'qty':         float(item.get('qty') or 0),
+                    'entry_price': float(item.get('avgEntryPrice') or 0),
+                    'exit_price':  float(item.get('avgExitPrice') or 0),
+                    'pnl':         round(float(item.get('closedPnl') or 0), 4),
+                    'created_time': int(item.get('createdTime') or 0),  # ms timestamp
+                })
+            return result
+        except Exception as e:
+            print(f"아이린: closed PnL 조회 오류: {e}")
+            return []
+
 if __name__ == "__main__":
     fetcher = DataFetcher()
     symbol = 'BTC/USDT'

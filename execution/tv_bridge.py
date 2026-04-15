@@ -233,13 +233,17 @@ class TVBridge:
             if order:
                 import time as _t
                 self.agent.status['trade_log'].append({
-                    'time': _t.strftime('%m/%d %H:%M'),
-                    'symbol': symbol,
-                    'side': side.upper(),
-                    'qty': f'{qty:.6f}',
-                    'sl': sl,
-                    'tp': tp,
-                    'account': 'webhook',
+                    'time':        _t.strftime('%m/%d %H:%M'),
+                    'ts':          int(_t.time() * 1000),
+                    'symbol':      symbol,
+                    'side':        side.upper(),
+                    'qty':         f'{qty:.6f}',
+                    'entry_price': round(float(current_price), 4),
+                    'sl':          sl,
+                    'tp':          tp,
+                    'account':     'webhook',
+                    'pnl':         None,
+                    'exit_price':  None,
                 })
         except Exception as e:
             print(f"아이린: 웹후크 처리 오류: {e}")

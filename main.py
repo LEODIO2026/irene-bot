@@ -183,13 +183,17 @@ class IreneAgent:
             if order:
                 self.decision_maker.record_trade()
                 self.status['trade_log'].append({
-                    'time': time.strftime('%m/%d %H:%M'),
-                    'symbol': symbol,
-                    'side': side.upper(),
-                    'qty': f'{qty:.6f}',
-                    'sl': sl,
-                    'tp': tp,
-                    'account': 'core',
+                    'time':        time.strftime('%m/%d %H:%M'),
+                    'ts':          int(time.time() * 1000),
+                    'symbol':      symbol,
+                    'side':        side.upper(),
+                    'qty':         f'{qty:.6f}',
+                    'entry_price': round(current_price, 4),
+                    'sl':          sl,
+                    'tp':          tp,
+                    'account':     'core',
+                    'pnl':         None,
+                    'exit_price':  None,
                 })
                 print(f"🎉 아이린: {symbol} {side.upper()} 진입 성공! 쿨다운 {self.decision_maker.cooldown_minutes}분 시작")
             
@@ -248,13 +252,17 @@ class IreneAgent:
                     'pyramid_done': False,
                 }
                 self.status['trade_log'].append({
-                    'time': time.strftime('%m/%d %H:%M'),
-                    'symbol': symbol,
-                    'side': side.upper(),
-                    'qty': f'{qty:.6f}',
-                    'sl': sl,
-                    'tp': tp,
-                    'account': 'satellite',
+                    'time':        time.strftime('%m/%d %H:%M'),
+                    'ts':          int(time.time() * 1000),
+                    'symbol':      symbol,
+                    'side':        side.upper(),
+                    'qty':         f'{qty:.6f}',
+                    'entry_price': round(current_price, 4),
+                    'sl':          sl,
+                    'tp':          tp,
+                    'account':     'satellite',
+                    'pnl':         None,
+                    'exit_price':  None,
                 })
                 print(f"🎉 [위성] {symbol} {side.upper()} 진입 성공! 복리배율={signal['compound_factor']:.2f}x")
 
@@ -454,6 +462,38 @@ class IreneAgent:
             # 전체 종목 1사이클 후 대기
             time.sleep(40)
 
+    def _pnl_monitor_loop(self):
+        """
+        백그라운드: 60초마다 Bybit closed-pnl을 조회해 trade_log의 미결 항목에 손익 업데이트.
+        코어 계정과 위성 계정을 각각 조회합니다.
+        """
+        while True:
+            try:
+                pending = [e for e in self.status['trade_log'] if e.get('pnl') is None]
+                if pending:
+                    # 코어 계정 closed PnL
+                    core_pnl   = self.fetcher.fetch_closed_pnl(limit=50)
+                    # 위성 계정 closed PnL (키가 다를 경우)
+                    sat_pnl    = self.satellite_fetcher.fetch_closed_pnl(limit=50)
+
+                    for entry in pending:
+                        sym_bybit = entry['symbol'].replace('/USDT','USDT').replace('/','')
+                        ts_ms     = entry.get('ts', 0)
+                        source    = sat_pnl if entry.get('account') == 'satellite' else core_pnl
+
+                        for rec in source:
+                            # 심볼 매칭 + 시간 5분 이내
+                            if rec['symbol'] != sym_bybit:
+                                continue
+                            if abs(rec['created_time'] - ts_ms) > 5 * 60 * 1000:
+                                continue
+                            entry['pnl']        = rec['pnl']
+                            entry['exit_price'] = rec['exit_price']
+                            break
+            except Exception as e:
+                print(f"아이린: PnL 모니터 오류: {e}")
+            time.sleep(60)
+
     def start(self):
         """
         웹후크 서버와 자율 분석 루프를 동시에 시작합니다.
@@ -462,8 +502,13 @@ class IreneAgent:
         bridge_thread = threading.Thread(target=self.bridge.run, kwargs={'host': '0.0.0.0', 'port': 9090})
         bridge_thread.daemon = True
         bridge_thread.start()
-        
-        # 2. 자율 ICT 분석 루프 시작 (메인)
+
+        # 2. PnL 모니터 스레드
+        pnl_thread = threading.Thread(target=self._pnl_monitor_loop)
+        pnl_thread.daemon = True
+        pnl_thread.start()
+
+        # 3. 자율 ICT 분석 루프 시작 (메인)
         self.run_analysis_loop()
 
 if __name__ == "__main__":
