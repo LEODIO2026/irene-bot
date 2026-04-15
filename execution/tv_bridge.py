@@ -14,7 +14,15 @@ class TVBridge:
         self.agent = agent_instance
         self.passphrase = os.getenv('WEBHOOK_PASSPHRASE', 'irene_secret')
         self.backtest_status = "idle"  # idle, running, completed, error
+        self._assistant = None  # lazy init (API key may not be set at startup)
         self.setup_routes()
+
+    @property
+    def assistant(self):
+        if self._assistant is None:
+            from execution.trade_assistant import TradeAssistant
+            self._assistant = TradeAssistant(self.agent)
+        return self._assistant
 
     def setup_routes(self):
         @self.app.route('/health', methods=['GET'])
@@ -118,6 +126,108 @@ class TVBridge:
         def dashboard():
             """프리미엄 실시간 모니터링 대시보드"""
             return render_template('dashboard.html')
+
+        @self.app.route('/trade-assistant', methods=['GET'])
+        def trade_assistant_page():
+            """반자동 대화형 트레이딩 어시스턴트 페이지"""
+            return render_template('trade_assistant.html')
+
+        @self.app.route('/api/trade-chat', methods=['POST'])
+        def trade_chat():
+            """Claude와 대화 — 텍스트 + 선택적 차트 이미지"""
+            data = request.get_json(silent=True) or {}
+            session_id  = data.get('session_id', 'default')
+            user_text   = data.get('message', '').strip()
+            symbol      = data.get('symbol', 'BTC/USDT')
+            image_b64   = data.get('image_b64')   # base64 string (no data:... prefix)
+            image_mime  = data.get('image_mime', 'image/png')
+
+            if not user_text and not image_b64:
+                return jsonify({'error': '메시지 또는 이미지가 필요합니다.'}), 400
+
+            try:
+                result = self.assistant.chat(
+                    session_id=session_id,
+                    user_text=user_text,
+                    image_b64=image_b64,
+                    image_mime=image_mime,
+                    symbol=symbol,
+                )
+                return jsonify(result), 200
+            except ValueError as e:
+                return jsonify({'error': str(e), 'need_api_key': True}), 503
+            except Exception as e:
+                import traceback; traceback.print_exc()
+                return jsonify({'error': str(e)}), 500
+
+        @self.app.route('/api/trade-execute', methods=['POST'])
+        def trade_execute():
+            """확정된 거래 실행"""
+            data = request.get_json(silent=True) or {}
+            if data.get('passphrase') != self.passphrase:
+                return jsonify({'error': 'unauthorized'}), 401
+
+            symbol     = data.get('symbol', 'BTC/USDT')
+            side       = data.get('side', '').lower()
+            sl         = data.get('sl')
+            tp         = data.get('tp')
+            session_id = data.get('session_id', 'default')
+
+            if side not in ('buy', 'sell'):
+                return jsonify({'error': 'side는 buy 또는 sell이어야 합니다.'}), 400
+            if sl is None or tp is None:
+                return jsonify({'error': 'sl과 tp가 필요합니다.'}), 400
+
+            try:
+                result = self.assistant.execute_trade(
+                    symbol=symbol, side=side,
+                    sl=float(sl), tp=float(tp),
+                    session_id=session_id,
+                )
+                return jsonify(result), 200 if result['success'] else 500
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
+
+        @self.app.route('/api/trade-close', methods=['POST'])
+        def trade_close():
+            """포지션 청산"""
+            data = request.get_json(silent=True) or {}
+            if data.get('passphrase') != self.passphrase:
+                return jsonify({'error': 'unauthorized'}), 401
+
+            symbol     = data.get('symbol', 'BTC/USDT')
+            session_id = data.get('session_id', 'default')
+
+            try:
+                result = self.assistant.close_position(symbol=symbol, session_id=session_id)
+                return jsonify(result), 200 if result['success'] else 500
+            except Exception as e:
+                return jsonify({'success': False, 'message': str(e)}), 500
+
+        @self.app.route('/api/trade-reset', methods=['POST'])
+        def trade_reset():
+            """대화 세션 초기화"""
+            data = request.get_json(silent=True) or {}
+            session_id = data.get('session_id', 'default')
+            if self._assistant:
+                self._assistant.clear_session(session_id)
+            return jsonify({'status': 'ok'}), 200
+
+        @self.app.route('/api/trade-position', methods=['GET'])
+        def trade_position():
+            """코어 계정 현재 포지션 조회"""
+            symbol = request.args.get('symbol', 'BTC/USDT')
+            try:
+                positions = self.agent.fetcher.fetch_positions(symbols=[symbol])
+                pos = positions.get(symbol)
+                snap = None
+                if pos:
+                    df = self.agent.fetcher.fetch_ohlcv(symbol, '1h', 2)
+                    price = float(df.iloc[-1]['close']) if df is not None and not df.empty else 0
+                    snap = {**pos, 'current_price': price}
+                return jsonify({'position': snap}), 200
+            except Exception as e:
+                return jsonify({'error': str(e)}), 500
 
         # ── 백테스트 API ───────────────────────────
         
