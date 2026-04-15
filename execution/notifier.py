@@ -150,7 +150,7 @@ class TelegramBot:
         asyncio.set_event_loop(self._loop)
         
         print("🚀 아이린 텔레그램 봇 리스너 가동...")
-        self.app.run_polling(close_loop=False)
+        self.app.run_polling(close_loop=False, stop_signals=False)
 
 # 하위 호환성을 위한 래퍼 클래스
 class TelegramNotifier(TelegramBot):
