@@ -5,8 +5,8 @@ import base64
 import time
 from io import BytesIO
 from dotenv import load_dotenv
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
 load_dotenv()
 
@@ -20,6 +20,8 @@ class TelegramBot:
         self.agent = agent_instance
         self.app = None
         self._loop = None
+        # 기본 모델 설정 (Claude 4.6 Sonnet)
+        self.current_model = 'claude-4-6-sonnet'
         
         if not self.token:
             print("⚠️ TELEGRAM_BOT_TOKEN이 설정되지 않았습니다.")
@@ -32,6 +34,8 @@ class TelegramBot:
     def _setup_handlers(self):
         self.app.add_handler(CommandHandler("start", self._start_command))
         self.app.add_handler(CommandHandler("help", self._help_command))
+        self.app.add_handler(CommandHandler("model", self._model_command))
+        self.app.add_handler(CallbackQueryHandler(self._model_callback))
         self.app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), self._handle_message))
         self.app.add_handler(MessageHandler(filters.PHOTO, self._handle_photo))
 
@@ -52,9 +56,44 @@ class TelegramBot:
             "<b>아이린 텔레그램 사용법:</b>\n"
             "• 그냥 말을 걸면 현재 시장 상황에 대해 대화할 수 있어요.\n"
             "• 차트 캡처 이미지를 보내면 분석해 드릴게요.\n"
+            "• /model 명령어로 AI 모델을 변경할 수 있어요.\n"
             "• 알림이 오면 대시보드 링크를 통해 거래를 승인하세요."
         )
         await update.message.reply_html(msg)
+
+    async def _model_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """AI 모델 선택 메뉴 출력"""
+        if not self.agent or str(update.effective_chat.id) != self.chat_id:
+            return
+
+        keyboard = [
+            [
+                InlineKeyboardButton("🧠 Claude 4.6 Opus", callback_data='claude-4-6-opus'),
+                InlineKeyboardButton("⚡ Claude 4.6 Sonnet", callback_data='claude-4-6-sonnet'),
+            ],
+            [
+                InlineKeyboardButton("💎 Gemini 3.1 Pro", callback_data='gemini-3.1-pro-preview'),
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(
+            f"현재 모델: <b>{self.current_model}</b>\n변경할 모델을 선택해 주세요:",
+            reply_markup=reply_markup,
+            parse_mode='HTML'
+        )
+
+    async def _model_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """모델 선택 결과 처리"""
+        query = update.callback_query
+        await query.answer()
+
+        selected_model = query.data
+        self.current_model = selected_model
+
+        await query.edit_message_text(
+            text=f"✅ 모델이 <b>{selected_model}</b>(으)로 변경되었습니다! 이제 이 모델로 분석해 드릴게요. 😊",
+            parse_mode='HTML'
+        )
 
     async def _handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """텍스트 메시지 처리 — TradeAssistant와 연동"""
@@ -72,7 +111,7 @@ class TelegramBot:
                 session_id=f"tg_{self.chat_id}",
                 user_text=user_text,
                 symbol=self.agent.symbols[0], # 기본 심볼
-                model='claude-3-5-sonnet-20241022'
+                model=self.current_model
             )
             reply = result.get('reply', '음... 뭐라고 답해야 할지 모르겠어요. 😅')
             await update.message.reply_html(reply)
@@ -100,7 +139,7 @@ class TelegramBot:
                 user_text=user_text,
                 images=[{'b64': img_b64, 'mime': 'image/png'}],
                 symbol=self.agent.symbols[0],
-                model='claude-3-5-sonnet-20241022'
+                model=self.current_model
             )
             reply = result.get('reply', '이미지를 분석하는 데 문제가 생겼어요. 🙏')
             await update.message.reply_html(reply)
