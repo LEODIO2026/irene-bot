@@ -227,8 +227,8 @@ class TVBridge:
 
             risk_report = self.agent.risk_manager.calculate_position_size(balance, current_price, sl)
             qty = risk_report['position_qty']
-            lev = int(risk_report['required_leverage'])
-            
+            lev = max(2, int(risk_report['required_leverage']) + 1)
+
             self.agent.executor.place_order(symbol, side, qty, lev, stop_loss=sl, take_profit=tp)
         except Exception as e:
             print(f"아이린: 웹후크 처리 오류: {e}")

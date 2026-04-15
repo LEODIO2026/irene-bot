@@ -307,12 +307,12 @@ class DataFetcher:
                 result[normalized] = {
                     'side':           pos.get('side', ''),
                     'size':           size,
-                    'entry_price':    float(pos.get('entryPrice', 0)),
-                    'unrealized_pnl': round(float(pos.get('unrealizedPnl', 0)), 4),
-                    'percentage':     round(float(pos.get('percentage', 0)), 2),
-                    'liq_price':      float(pos.get('liquidationPrice', 0)),
-                    'leverage':       float(pos.get('leverage', 1)),
-                    'notional':       round(float(pos.get('notional', 0)), 2),
+                    'entry_price':    float(pos.get('entryPrice') or 0),
+                    'unrealized_pnl': round(float(pos.get('unrealizedPnl') or 0), 4),
+                    'percentage':     round(float(pos.get('percentage') or 0), 2),
+                    'liq_price':      float(pos.get('liquidationPrice') or 0),
+                    'leverage':       float(pos.get('leverage') or 1),
+                    'notional':       round(float(pos.get('notional') or 0), 2),
                 }
             return result
         except Exception as e:
