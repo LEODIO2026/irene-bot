@@ -59,6 +59,14 @@ body::before {
 .mode-pill { padding:4px 12px; border-radius:20px; font-size:0.7em; font-weight:700; }
 .mode-live { background:rgba(52,211,153,0.12); color:var(--green); border:1px solid rgba(52,211,153,0.3); }
 .mode-test { background:rgba(251,191,36,0.12); color:var(--yellow); border:1px solid rgba(251,191,36,0.3); }
+.btn-assistant {
+  display:flex; align-items:center; gap:6px;
+  padding:7px 14px; border-radius:10px; font-size:0.72em; font-weight:700;
+  background:rgba(167,139,250,0.12); color:#a78bfa;
+  border:1px solid rgba(167,139,250,0.3);
+  text-decoration:none; transition:all .2s; white-space:nowrap;
+}
+.btn-assistant:hover { background:rgba(167,139,250,0.22); border-color:rgba(167,139,250,0.55); }
 .server-time { font-size:0.7em; color:var(--muted); font-variant-numeric:tabular-nums; }
 .hb-dot { width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); animation:hb 1.5s infinite; display:inline-block; }
 @keyframes hb { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
@@ -225,6 +233,7 @@ tr td:last-child  { border-radius:0 8px 8px 0; }
     </div>
   </div>
   <div class="hd-right">
+    <a href="/trade-assistant" class="btn-assistant">✨ 아이린 어시스턴트</a>
     <div id="modePill" class="mode-pill mode-live">MAINNET</div>
     <div class="server-time" id="srvTime">--:--:--</div>
   </div>
