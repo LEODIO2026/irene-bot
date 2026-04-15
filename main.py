@@ -89,8 +89,9 @@ class IreneAgent:
             'pending_proposals': {}  # symbol -> signal
         }
         
-        # 텔레그램 알림
-        self.notifier = TelegramNotifier()
+        # 텔레그램 알림 및 대화 리스너
+        self.notifier = TelegramNotifier(agent_instance=self)
+        self._start_telegram_bot()
         # 개별 코인용 상태
         self.symbol_status = {
             sym: {
@@ -568,6 +569,11 @@ class IreneAgent:
             except Exception as e:
                 print(f"아이린: PnL 모니터 오류: {e}")
             time.sleep(60)
+
+    def _start_telegram_bot(self):
+        """텔레그램 봇 리스너를 별도 스레드에서 실행"""
+        t = threading.Thread(target=self.notifier.run_polling, daemon=True)
+        t.start()
 
     def start(self):
         """
