@@ -800,6 +800,14 @@ class TradeAssistant:
         elif side_short and not side_long:
             side = 'sell'
 
+        # TP는 SL 기준 1:3 고정 (current_price 기준)
+        if sl is not None and current_price > 0:
+            risk = abs(current_price - sl)
+            if side == 'sell':
+                tp = round(current_price - risk * 3, 4)
+            else:
+                tp = round(current_price + risk * 3, 4)
+
         return {'sl': sl, 'tp': tp, 'side': side}
 
     # ── 거래 실행 ─────────────────────────────────────────────────

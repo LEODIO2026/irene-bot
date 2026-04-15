@@ -739,26 +739,8 @@ function selectSide(side) {
   updateExecBtn();
 }
 
-// ── SL 입력 → TP 1:3 자동 계산 ──────────────────────────────
-function autoCalcTP(sl, side) {
-  const price = lastKnownPrice;
-  if (!sl || !price) return;
-  const risk = Math.abs(price - sl);
-  const tp = (side === 'sell')
-    ? Math.round((price - risk * 3) * 10000) / 10000
-    : Math.round((price + risk * 3) * 10000) / 10000;
-  const tpEl = document.getElementById('tpInput');
-  tpEl.value = tp;
-  tpEl.classList.add('tp-active');
-  setTimeout(() => tpEl.classList.remove('tp-active'), 2000);
-}
-
-// ── SL/TP 입력 → RR 계산 ─────────────────────────────────
-document.getElementById('slInput').addEventListener('input', () => {
-  const sl = parseFloat(document.getElementById('slInput').value);
-  if (sl && lastKnownPrice) autoCalcTP(sl, selectedSide);
-  updateRR();
-});
+// ── SL/TP 입력 → RR 표시 ─────────────────────────────────
+document.getElementById('slInput').addEventListener('input', updateRR);
 document.getElementById('tpInput').addEventListener('input', updateRR);
 
 function updateRR() {
@@ -965,16 +947,22 @@ async function sendMessage(retryPayload) {
 
     if (data.suggestion) {
       const s = data.suggestion;
+      // 방향 자동 세팅
+      if (s.side) selectSide(s.side);
+      // SL 자동 세팅
       if (s.sl) {
         document.getElementById('slInput').value = s.sl;
         document.getElementById('slInput').classList.add('sl-active');
         setTimeout(() => document.getElementById('slInput').classList.remove('sl-active'), 2000);
-        // SL 기준 1:3 TP 자동 계산
-        autoCalcTP(s.sl, s.side || selectedSide);
       }
-      if (s.side && !selectedSide) selectSide(s.side);
-      if (s.sl) {
-        document.getElementById('suggestionNote').textContent = '✦ AI 제안 반영됨 (TP 1:3 자동)';
+      // TP 자동 세팅 (서버에서 1:3 계산된 값)
+      if (s.tp) {
+        document.getElementById('tpInput').value = s.tp;
+        document.getElementById('tpInput').classList.add('tp-active');
+        setTimeout(() => document.getElementById('tpInput').classList.remove('tp-active'), 2000);
+      }
+      if (s.sl || s.tp) {
+        document.getElementById('suggestionNote').textContent = '✦ AI 자동 설정 (1:3)';
         updateRR();
       }
     }
