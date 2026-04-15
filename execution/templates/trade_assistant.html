@@ -152,14 +152,16 @@
   .bubble strong { color: var(--gold); }
   .bubble em { color: var(--accent2); font-style: normal; }
 
-  /* 이미지 첨부 프리뷰 */
+  /* 이미지 첨부 프리뷰 (메시지 버블) */
   .img-preview {
     margin-bottom: 8px;
-    max-width: 200px;
-    max-height: 150px;
+    max-width: 180px;
+    max-height: 130px;
     border-radius: 8px;
     border: 1px solid var(--border);
-    object-fit: contain;
+    object-fit: cover;
+    display: inline-block;
+    margin-right: 4px;
   }
 
   /* 로딩 도트 */
@@ -195,25 +197,89 @@
     flex-direction: column;
     overflow: hidden;
     transition: border-color .2s;
+    position: relative;
   }
   .input-wrap:focus-within { border-color: var(--accent); }
+  .input-wrap.drag-over { border-color: var(--accent); }
 
+  /* 드래그앤드롭 오버레이 */
+  .drop-zone {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(129,140,248,.12);
+    border: 2px dashed var(--accent);
+    border-radius: 12px;
+    z-index: 10;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: var(--accent);
+    font-weight: 600;
+    pointer-events: none;
+  }
+  .drop-zone.active { display: flex; }
+
+  /* 첨부 이미지 썸네일 목록 */
   .img-attach-preview {
     padding: 8px 12px 0;
     display: none;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .img-attach-preview.has-images { display: flex; }
+  .img-thumb-wrap {
+    position: relative;
+    display: inline-block;
   }
   .img-attach-preview img {
-    height: 60px;
-    border-radius: 6px;
+    height: 64px;
+    width: 64px;
+    border-radius: 8px;
     border: 1px solid var(--border);
     object-fit: cover;
+    display: block;
   }
-  .img-attach-preview .remove-img {
-    margin-left: 6px;
+  .img-thumb-remove {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--sell);
+    color: #fff;
+    border: none;
     cursor: pointer;
-    color: var(--sell);
-    font-size: 12px;
-    vertical-align: top;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    padding: 0;
+  }
+  .img-add-btn {
+    height: 64px;
+    width: 64px;
+    border-radius: 8px;
+    border: 1px dashed var(--border);
+    background: var(--surface2);
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color .2s, color .2s;
+    flex-shrink: 0;
+  }
+  .img-add-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .img-count-badge {
+    font-size: 10px;
+    color: var(--muted);
+    align-self: flex-end;
+    padding-bottom: 4px;
   }
 
   #chatInput {
@@ -509,6 +575,7 @@
       <option value="gemini-2.5-pro">2.5 Pro (구버전 안정)</option>
     </optgroup>
   </select>
+  <a href="/chat-logs" style="font-size:12px;color:var(--muted);text-decoration:none;padding:4px 10px;border:1px solid var(--border);border-radius:6px;transition:color .2s,border-color .2s" onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">📋 로그 보기</a>
   <button class="reset-btn" onclick="resetSession()">대화 초기화</button>
 </header>
 
@@ -520,30 +587,39 @@
       <!-- 환영 메시지 -->
       <div class="msg assistant">
         <div class="avatar">아</div>
-        <div class="bubble">안녕하세요. ICT 기반 트레이드 어시스턴트 아이린입니다.
+        <div class="bubble">안녕하세요, 아이린입니다.
 
-차트 이미지를 업로드하거나, 현재 시장 상황을 설명해 주세요. 함께 진입 자리를 분석하겠습니다.
+심볼을 선택하고 "분석 시작"이라고 입력하면 바로 시작합니다.
+차트 이미지는 드래그앤드롭 또는 📷 버튼으로 최대 5장 첨부 가능합니다.
 
-분석 흐름:
-<strong>1. Kill Zone 확인</strong> → <strong>2. 1D BOS/MSS</strong> → <strong>3. 200EMA</strong> → <strong>4. 4H 모멘텀</strong> → <strong>5. 15m 스윕</strong> → <strong>6. FVG/OB 진입 자리</strong></div>
+오늘의 매매는 아래 6단계 순서로 진행합니다.
+
+<strong>Step 1.</strong> [HTF 방향성] 1D BOS/MSS — 오늘 방향 1개 고정
+<strong>Step 2.</strong> [모멘텀 컨펌] 4H Orderflow — 1D와 방향 일치 여부
+<strong>Step 3.</strong> [시간 필터] Kill Zone — 런던/뉴욕장 진입 확인
+<strong>Step 4.</strong> [유동성 사냥] 15m Sweep — 이전 세션 고저 스윕 확인
+<strong>Step 5.</strong> [구조 전환] 5m/15m MSS — 스윕 후 구조 꺾임 확인
+<strong>Step 6.</strong> [실행] FVG/OB — 지정가 진입 + SL/TP 1:3 세팅
+
+모든 기본 데이터(1D·4H·15m 구조, 펀딩피, 공포/탐욕, 바이낸스 오더플로우)는 자동으로 수집합니다.</div>
       </div>
     </div>
 
     <div class="chat-input-area">
       <div class="input-row">
-        <div class="input-wrap">
-          <div class="img-attach-preview" id="imgPreviewBox">
-            <img id="imgPreviewThumb" src="" alt="">
-            <span class="remove-img" onclick="removeImage()">✕ 제거</span>
-          </div>
-          <textarea id="chatInput" rows="1" placeholder="시장 분석 또는 차트 설명을 입력하세요... (Shift+Enter: 줄바꿈)"
+        <div class="input-wrap" id="inputWrap">
+          <!-- 드래그앤드롭 오버레이 -->
+          <div class="drop-zone" id="dropZone">📷 차트 이미지를 여기에 놓으세요</div>
+          <!-- 첨부 이미지 썸네일 -->
+          <div class="img-attach-preview" id="imgPreviewBox"></div>
+          <textarea id="chatInput" rows="1" placeholder="시장 분석 또는 차트 설명 입력... (Shift+Enter: 줄바꿈 / 이미지 드래그앤드롭 가능)"
             onkeydown="handleKeydown(event)" oninput="autoResize(this)"></textarea>
           <div class="input-actions">
             <div class="input-actions-left">
-              <button class="icon-btn" onclick="document.getElementById('imgInput').click()" title="차트 이미지 업로드">
-                📷 <span>차트</span>
+              <button class="icon-btn" onclick="document.getElementById('imgInput').click()" title="차트 이미지 추가 (최대 5장)">
+                📷 <span id="imgBtnLabel">차트 추가</span>
               </button>
-              <input type="file" id="imgInput" accept="image/*" onchange="handleImageSelect(event)">
+              <input type="file" id="imgInput" accept="image/*" multiple onchange="handleImageSelect(event)">
             </div>
             <div style="font-size:11px;color:var(--muted)" id="selectedSymbolLabel">BTC/USDT</div>
           </div>
@@ -632,9 +708,12 @@ const PASSPHRASE = 'irene_secret';
 
 let selectedSymbol = 'BTC/USDT';
 let selectedSide = null;
-let attachedImage = null;  // { b64, mime }
+let attachedImages = [];   // [{ b64, mime, dataUrl }, ...]  최대 5장
 let hasPosition = false;
 let selectedModel = 'claude-sonnet-4-6';
+const MAX_IMAGES = 5;
+let lastPayload = null;    // 마지막 전송 페이로드 (재시도용)
+let lastKnownPrice = 0;    // 마지막으로 수신한 현재가 (SL→TP 1:3 계산용)
 
 function selectModel(modelId) {
   selectedModel = modelId;
@@ -660,20 +739,40 @@ function selectSide(side) {
   updateExecBtn();
 }
 
+// ── SL 입력 → TP 1:3 자동 계산 ──────────────────────────────
+function autoCalcTP(sl, side) {
+  const price = lastKnownPrice;
+  if (!sl || !price) return;
+  const risk = Math.abs(price - sl);
+  const tp = (side === 'sell')
+    ? Math.round((price - risk * 3) * 10000) / 10000
+    : Math.round((price + risk * 3) * 10000) / 10000;
+  const tpEl = document.getElementById('tpInput');
+  tpEl.value = tp;
+  tpEl.classList.add('tp-active');
+  setTimeout(() => tpEl.classList.remove('tp-active'), 2000);
+}
+
 // ── SL/TP 입력 → RR 계산 ─────────────────────────────────
-document.getElementById('slInput').addEventListener('input', updateRR);
+document.getElementById('slInput').addEventListener('input', () => {
+  const sl = parseFloat(document.getElementById('slInput').value);
+  if (sl && lastKnownPrice) autoCalcTP(sl, selectedSide);
+  updateRR();
+});
 document.getElementById('tpInput').addEventListener('input', updateRR);
 
 function updateRR() {
   const sl = parseFloat(document.getElementById('slInput').value);
   const tp = parseFloat(document.getElementById('tpInput').value);
-  if (sl && tp && selectedSide) {
-    // 간단한 RR (진입가를 모르니 SL-TP 거리 비율로 표시)
+  if (sl && tp && lastKnownPrice) {
+    const risk = Math.abs(lastKnownPrice - sl);
+    const reward = Math.abs(tp - lastKnownPrice);
     document.getElementById('rrDisplay').style.display = 'block';
-    const dist = Math.abs(tp - sl);
-    if (dist > 0) {
-      document.getElementById('rrRatio').textContent = `설정됨 ✓`;
-    }
+    const rr = risk > 0 ? (reward / risk).toFixed(2) : '—';
+    document.getElementById('rrRatio').textContent = `1 : ${rr}`;
+  } else if (sl && tp) {
+    document.getElementById('rrDisplay').style.display = 'block';
+    document.getElementById('rrRatio').textContent = `설정됨 ✓`;
   }
   updateExecBtn();
 }
@@ -695,28 +794,91 @@ function updateExecBtn() {
 
 // ── 이미지 처리 ──────────────────────────────────────────
 function handleImageSelect(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(ev) {
-    const dataUrl = ev.target.result;
-    const mime = file.type || 'image/png';
-    const b64 = dataUrl.split(',')[1];
-    attachedImage = { b64, mime };
-    // 프리뷰
-    document.getElementById('imgPreviewBox').style.display = 'block';
-    document.getElementById('imgPreviewThumb').src = dataUrl;
-  };
-  reader.readAsDataURL(file);
-  // 파일 인풋 리셋 (같은 파일 재선택 가능)
+  const files = Array.from(e.target.files);
+  addImageFiles(files);
   e.target.value = '';
 }
 
-function removeImage() {
-  attachedImage = null;
-  document.getElementById('imgPreviewBox').style.display = 'none';
-  document.getElementById('imgPreviewThumb').src = '';
+function addImageFiles(files) {
+  const remaining = MAX_IMAGES - attachedImages.length;
+  const toAdd = files.slice(0, remaining);
+  toAdd.forEach(file => {
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const dataUrl = ev.target.result;
+      attachedImages.push({ b64: dataUrl.split(',')[1], mime: file.type || 'image/png', dataUrl });
+      renderImagePreviews();
+    };
+    reader.readAsDataURL(file);
+  });
+  if (files.length > remaining) {
+    showToast(`이미지는 최대 ${MAX_IMAGES}장까지 첨부 가능합니다.`, 'error');
+  }
 }
+
+function removeImage(idx) {
+  attachedImages.splice(idx, 1);
+  renderImagePreviews();
+}
+
+function renderImagePreviews() {
+  const box = document.getElementById('imgPreviewBox');
+  const btn = document.getElementById('imgBtnLabel');
+  if (attachedImages.length === 0) {
+    box.innerHTML = '';
+    box.classList.remove('has-images');
+    btn.textContent = '차트 추가';
+    return;
+  }
+  box.classList.add('has-images');
+  btn.textContent = `차트 추가 (${attachedImages.length}/${MAX_IMAGES})`;
+  box.innerHTML = attachedImages.map((img, i) => `
+    <div class="img-thumb-wrap">
+      <img src="${img.dataUrl}" alt="차트${i+1}">
+      <button class="img-thumb-remove" onclick="removeImage(${i})" title="제거">✕</button>
+    </div>
+  `).join('') + (attachedImages.length < MAX_IMAGES ? `
+    <button class="img-add-btn" onclick="document.getElementById('imgInput').click()" title="이미지 추가">+</button>
+    <span class="img-count-badge">${attachedImages.length}/${MAX_IMAGES}</span>
+  ` : `<span class="img-count-badge">${attachedImages.length}/${MAX_IMAGES} (최대)</span>`);
+}
+
+// ── 드래그앤드롭 ─────────────────────────────────────────
+(function initDragDrop() {
+  const wrap = document.getElementById('inputWrap');
+  const zone = document.getElementById('dropZone');
+  let dragCounter = 0;
+
+  wrap.addEventListener('dragenter', e => {
+    e.preventDefault();
+    dragCounter++;
+    if (dragCounter === 1) {
+      wrap.classList.add('drag-over');
+      zone.classList.add('active');
+    }
+  });
+  wrap.addEventListener('dragleave', e => {
+    dragCounter--;
+    if (dragCounter === 0) {
+      wrap.classList.remove('drag-over');
+      zone.classList.remove('active');
+    }
+  });
+  wrap.addEventListener('dragover', e => e.preventDefault());
+  wrap.addEventListener('drop', e => {
+    e.preventDefault();
+    dragCounter = 0;
+    wrap.classList.remove('drag-over');
+    zone.classList.remove('active');
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    if (files.length) addImageFiles(files);
+  });
+
+  // 전체 페이지 드래그 방지 (채팅창 밖 드롭 무시)
+  document.addEventListener('dragover', e => e.preventDefault());
+  document.addEventListener('drop', e => e.preventDefault());
+})();
 
 // ── 메시지 전송 ──────────────────────────────────────────
 function handleKeydown(e) {
@@ -731,38 +893,43 @@ function autoResize(el) {
   el.style.height = Math.min(el.scrollHeight, 160) + 'px';
 }
 
-async function sendMessage() {
+async function sendMessage(retryPayload) {
   const input = document.getElementById('chatInput');
-  const text = input.value.trim();
-  if (!text && !attachedImage) return;
-
   const sendBtn = document.getElementById('sendBtn');
-  sendBtn.disabled = true;
 
-  // 유저 메시지 추가
-  addMessage('user', text, attachedImage ? document.getElementById('imgPreviewThumb').src : null);
-  input.value = '';
-  input.style.height = 'auto';
+  let body;
+  if (retryPayload) {
+    // 재시도: 저장된 페이로드 그대로 사용
+    body = retryPayload;
+  } else {
+    const text = input.value.trim();
+    if (!text && attachedImages.length === 0) return;
+    sendBtn.disabled = true;
 
-  // 이미지 캐시 후 제거
-  const imgPayload = attachedImage ? {...attachedImage} : null;
-  removeImage();
+    // 유저 메시지 버블 추가
+    const previewUrls = attachedImages.map(i => i.dataUrl);
+    addMessage('user', text, previewUrls);
+    input.value = '';
+    input.style.height = 'auto';
 
-  // 타이핑 인디케이터
-  const typingId = addTyping();
+    const imagesPayload = attachedImages.map(i => ({ b64: i.b64, mime: i.mime }));
+    attachedImages = [];
+    renderImagePreviews();
 
-  try {
-    const body = {
+    body = {
       session_id: SESSION_ID,
       message: text,
       symbol: selectedSymbol,
       model: selectedModel,
+      images: imagesPayload,
     };
-    if (imgPayload) {
-      body.image_b64 = imgPayload.b64;
-      body.image_mime = imgPayload.mime;
-    }
+    lastPayload = body;  // 재시도용 저장
+  }
 
+  sendBtn.disabled = true;
+  const typingId = addTyping();
+
+  try {
     const res = await fetch('/api/trade-chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -772,59 +939,100 @@ async function sendMessage() {
     removeTyping(typingId);
 
     if (!res.ok) {
-      const err = await res.json();
-      if (err.need_api_key) {
-        addMessage('assistant', '⚠️ ANTHROPIC_API_KEY가 설정되지 않았습니다. .env 파일에 키를 입력하고 서버를 재시작해 주세요.');
-      } else {
-        addMessage('assistant', '오류: ' + (err.error || '알 수 없는 오류'));
-      }
+      let errMsg = `서버 오류 (HTTP ${res.status})`;
+      try {
+        const ct = res.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+          const e = await res.json();
+          if (e.need_api_key) errMsg = 'ANTHROPIC_API_KEY가 설정되지 않았습니다.';
+          else errMsg = e.error || errMsg;
+        } else {
+          const txt = await res.text();
+          // HTML 에러 페이지에서 핵심 메시지만 추출
+          const match = txt.match(/<title>(.*?)<\/title>/i) || txt.match(/Error:(.*?)[\n<]/);
+          errMsg = `HTTP ${res.status} — ${match ? match[1].trim() : '서버 응답 오류'}`;
+        }
+      } catch(e2) { errMsg += ` (파싱 실패: ${e2.message})`; }
+      addErrorMessage(errMsg);
       return;
     }
 
     const data = await res.json();
     addMessage('assistant', data.reply, null, data.model);
 
-    // SL/TP 제안 자동 채우기
+    // 현재가 저장
+    if (data.market && data.market.price) lastKnownPrice = data.market.price;
+
     if (data.suggestion) {
       const s = data.suggestion;
       if (s.sl) {
         document.getElementById('slInput').value = s.sl;
         document.getElementById('slInput').classList.add('sl-active');
         setTimeout(() => document.getElementById('slInput').classList.remove('sl-active'), 2000);
+        // SL 기준 1:3 TP 자동 계산
+        autoCalcTP(s.sl, s.side || selectedSide);
       }
-      if (s.tp) {
-        document.getElementById('tpInput').value = s.tp;
-        document.getElementById('tpInput').classList.add('tp-active');
-        setTimeout(() => document.getElementById('tpInput').classList.remove('tp-active'), 2000);
-      }
-      if (s.side && !selectedSide) {
-        selectSide(s.side);
-      }
-      if (s.sl || s.tp) {
-        document.getElementById('suggestionNote').textContent = '✦ AI 제안 반영됨';
+      if (s.side && !selectedSide) selectSide(s.side);
+      if (s.sl) {
+        document.getElementById('suggestionNote').textContent = '✦ AI 제안 반영됨 (TP 1:3 자동)';
         updateRR();
       }
     }
 
   } catch (err) {
     removeTyping(typingId);
-    addMessage('assistant', '연결 오류가 발생했습니다: ' + err.message);
+    addErrorMessage('연결 오류: ' + err.message);
   } finally {
     sendBtn.disabled = false;
     document.getElementById('chatInput').focus();
   }
 }
 
+function addErrorMessage(errText) {
+  const container = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'msg assistant';
+  div.innerHTML = `
+    <div class="avatar">아</div>
+    <div class="bubble" style="border-color:rgba(248,113,113,.3)">
+      <span style="color:var(--sell)">⚠️ ${errText}</span>
+      ${lastPayload ? `
+      <div style="margin-top:10px">
+        <button onclick="retryLastMessage(this)" style="
+          background:rgba(129,140,248,.15);border:1px solid var(--accent);
+          color:var(--accent);padding:6px 14px;border-radius:8px;
+          cursor:pointer;font-size:12px;font-weight:600;transition:opacity .2s
+        " onmouseover="this.style.opacity='.75'" onmouseout="this.style.opacity='1'">
+          🔄 다시 시도
+        </button>
+      </div>` : ''}
+    </div>
+  `;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function retryLastMessage(btn) {
+  if (!lastPayload) return;
+  // 오류 버블 제거
+  btn.closest('.msg').remove();
+  sendMessage(lastPayload);
+}
+
 // ── 메시지 DOM 추가 ──────────────────────────────────────
-function addMessage(role, text, imgSrc, model) {
+function addMessage(role, text, imgSrcs, model) {
   const container = document.getElementById('chatMessages');
   const div = document.createElement('div');
   div.className = 'msg ' + role;
 
   const avatarText = role === 'user' ? '나' : '아';
   let content = '';
-  if (imgSrc) {
-    content += `<img class="img-preview" src="${imgSrc}">`;
+  // imgSrcs: string(단일) or string[] or null
+  const imgs = Array.isArray(imgSrcs) ? imgSrcs : (imgSrcs ? [imgSrcs] : []);
+  if (imgs.length) {
+    content += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">` +
+      imgs.map(src => `<img class="img-preview" src="${src}">`).join('') +
+      `</div>`;
   }
   const formatted = formatText(text);
   content += formatted;
