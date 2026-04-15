@@ -182,6 +182,8 @@ body::before {
 
 /* ── 거래 로그 ── */
 .log-panel { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:14px 18px; margin-top:16px; }
+.log-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px; }
+@media(max-width:700px) { .log-grid { grid-template-columns:1fr; } }
 table { width:100%; border-collapse:separate; border-spacing:0 4px; font-size:.8em; }
 th { color:var(--muted); padding:4px 10px 8px; text-align:left; font-size:.68em; text-transform:uppercase; border-bottom:1px solid var(--border); }
 td { padding:9px 10px; background:rgba(0,0,0,.18); }
@@ -305,10 +307,22 @@ tr td:last-child  { border-radius:0 8px 8px 0; }
 <div id="liveSection">
   <div id="symGrid" class="sym-grid"></div>
 
-  <!-- 거래 로그 -->
-  <div class="log-panel">
-    <div class="panel-title">실행 히스토리</div>
-    <div id="tradeLog"><div class="pos-empty">거래 없음</div></div>
+  <!-- 거래 로그 (코어 / 위성 분리) -->
+  <div class="log-grid">
+    <div class="log-panel" style="margin-top:0; border-color:var(--core-border);">
+      <div class="panel-title">
+        <span>🔵 Core 실행 히스토리</span>
+        <span id="coreLogCount" style="color:var(--muted);font-size:1em;">0건</span>
+      </div>
+      <div id="coreTradeLog"><div class="pos-empty">거래 없음</div></div>
+    </div>
+    <div class="log-panel" style="margin-top:0; border-color:var(--sat-border);">
+      <div class="panel-title">
+        <span>🔴 Satellite 실행 히스토리</span>
+        <span id="satLogCount" style="color:var(--muted);font-size:1em;">0건</span>
+      </div>
+      <div id="satTradeLog"><div class="pos-empty">거래 없음</div></div>
+    </div>
   </div>
 </div>
 
@@ -641,45 +655,46 @@ async function update() {
       ? posItems.join('')
       : '<div class="pos-empty">포지션 없음 — 진입 자리 탐색 중</div>';
 
-    // 거래 로그
-    if (d.trade_log?.length) {
-      let html = '<table><tr><th>Time</th><th>계정</th><th>Symbol</th><th>Side</th><th>진입가</th><th>청산가</th><th>손익</th></tr>';
-      [...d.trade_log].reverse().forEach(l => {
-        const acTag = l.account === 'satellite'
-          ? '<span class="t-sat">위성</span>'
-          : l.account === 'webhook'
-          ? '<span style="color:#fbbf24;font-size:.7em;font-weight:700;">웹훅</span>'
-          : '<span class="t-core">코어</span>';
-
-        const entryStr = l.entry_price
-          ? '$' + Number(l.entry_price).toLocaleString(undefined, {maximumFractionDigits: 2})
-          : '-';
-        const exitStr = l.exit_price
-          ? '$' + Number(l.exit_price).toLocaleString(undefined, {maximumFractionDigits: 2})
-          : '<span style="color:var(--muted);font-size:.75em;">진행중</span>';
-
-        let pnlStr;
-        if (l.pnl !== null && l.pnl !== undefined) {
-          const pnl = Number(l.pnl);
-          const color = pnl >= 0 ? 'var(--green)' : 'var(--red)';
-          const icon  = pnl >= 0 ? '▲' : '▼';
-          pnlStr = `<span style="color:${color};font-weight:800;">${icon} ${pnl >= 0 ? '+' : ''}$${Math.abs(pnl).toFixed(2)}</span>`;
-        } else {
-          pnlStr = '<span style="color:var(--muted);font-size:.75em;">—</span>';
-        }
-
-        html += `<tr>
-          <td style="color:var(--muted)">${l.time}</td>
-          <td>${acTag}</td>
-          <td class="t-sym">${l.symbol}</td>
-          <td class="${l.side?.toLowerCase()==='buy'?'t-buy':'t-sell'}">${(l.side||'').toUpperCase()}</td>
-          <td style="font-variant-numeric:tabular-nums;">${entryStr}</td>
-          <td style="font-variant-numeric:tabular-nums;">${exitStr}</td>
-          <td>${pnlStr}</td>
-        </tr>`;
-      });
-      document.getElementById('tradeLog').innerHTML = html + '</table>';
+    // 거래 로그 — 코어 / 위성 분리
+    function buildLogRow(l) {
+      const entryStr = l.entry_price
+        ? '$' + Number(l.entry_price).toLocaleString(undefined, {maximumFractionDigits: 2})
+        : '-';
+      const exitStr = l.exit_price
+        ? '$' + Number(l.exit_price).toLocaleString(undefined, {maximumFractionDigits: 2})
+        : '<span style="color:var(--muted);font-size:.75em;">진행중</span>';
+      let pnlStr;
+      if (l.pnl !== null && l.pnl !== undefined) {
+        const pnl = Number(l.pnl);
+        const color = pnl >= 0 ? 'var(--green)' : 'var(--red)';
+        pnlStr = `<span style="color:${color};font-weight:800;">${pnl>=0?'▲':'▼'} ${pnl>=0?'+':''}$${Math.abs(pnl).toFixed(2)}</span>`;
+      } else {
+        pnlStr = '<span style="color:var(--muted);font-size:.75em;">—</span>';
+      }
+      return `<tr>
+        <td style="color:var(--muted)">${l.time}</td>
+        <td class="t-sym">${l.symbol}</td>
+        <td class="${l.side?.toLowerCase()==='buy'?'t-buy':'t-sell'}">${(l.side||'').toUpperCase()}</td>
+        <td style="font-variant-numeric:tabular-nums;">${entryStr}</td>
+        <td style="font-variant-numeric:tabular-nums;">${exitStr}</td>
+        <td>${pnlStr}</td>
+      </tr>`;
     }
+
+    const HDR = '<table><tr><th>Time</th><th>Symbol</th><th>Side</th><th>진입가</th><th>청산가</th><th>손익</th></tr>';
+    const EMPTY = '<div class="pos-empty">거래 없음</div>';
+
+    const coreLogs = [...(d.trade_log||[])].reverse().filter(l => l.account !== 'satellite');
+    const satLogs  = [...(d.trade_log||[])].reverse().filter(l => l.account === 'satellite');
+
+    document.getElementById('coreTradeLog').innerHTML = coreLogs.length
+      ? HDR + coreLogs.map(buildLogRow).join('') + '</table>'
+      : EMPTY;
+    document.getElementById('satTradeLog').innerHTML = satLogs.length
+      ? HDR + satLogs.map(buildLogRow).join('') + '</table>'
+      : EMPTY;
+    document.getElementById('coreLogCount').textContent = coreLogs.length + '건';
+    document.getElementById('satLogCount').textContent  = satLogs.length  + '건';
 
   } catch(e) { console.error('update error:', e); }
 }
