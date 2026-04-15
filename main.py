@@ -77,8 +77,9 @@ class IreneAgent:
         self.satellite_positions = {}
 
         # ── 대시보드용 상태 저장 ──
+        self._trade_log_path = os.path.join(os.path.dirname(__file__), 'data', 'trade_log.json')
         self.status = {
-            'trade_log': [],        # 최근 거래 이력
+            'trade_log': self._load_trade_log(),
             'started_at': time.strftime('%Y-%m-%d %H:%M:%S')
         }
         # 개별 코인용 상태
@@ -104,6 +105,29 @@ class IreneAgent:
         print(f"           리스크 1~3% (실시간 OI/L/S 기반) | RR 3:1 고정")
         print(f"🔴 위성:   자본 {satellite_capital:.0f}U | 레버리지 최대 {int(os.getenv('SATELLITE_MAX_LEV', 20))}배 | RR 3:1+")
         print(f"{'='*60}\n")
+
+    def _load_trade_log(self):
+        try:
+            if os.path.exists(self._trade_log_path):
+                import json
+                with open(self._trade_log_path, 'r') as f:
+                    return json.load(f)
+        except Exception:
+            pass
+        return []
+
+    def _save_trade_log(self):
+        try:
+            import json
+            os.makedirs(os.path.dirname(self._trade_log_path), exist_ok=True)
+            with open(self._trade_log_path, 'w') as f:
+                json.dump(self.status['trade_log'][-200:], f)  # 최대 200건 보관
+        except Exception as e:
+            print(f"아이린: trade_log 저장 오류: {e}")
+
+    def _append_trade_log(self, entry: dict):
+        self.status['trade_log'].append(entry)
+        self._save_trade_log()
 
     def check_open_position(self, symbol):
         """특정 종목에 현재 열린 포지션이 있는지 확인합니다."""
@@ -182,7 +206,7 @@ class IreneAgent:
 
             if order:
                 self.decision_maker.record_trade()
-                self.status['trade_log'].append({
+                self._append_trade_log({
                     'time':        time.strftime('%m/%d %H:%M'),
                     'ts':          int(time.time() * 1000),
                     'symbol':      symbol,
@@ -251,7 +275,7 @@ class IreneAgent:
                     'compound_factor': signal['compound_factor'],
                     'pyramid_done': False,
                 }
-                self.status['trade_log'].append({
+                self._append_trade_log({
                     'time':        time.strftime('%m/%d %H:%M'),
                     'ts':          int(time.time() * 1000),
                     'symbol':      symbol,
@@ -489,6 +513,7 @@ class IreneAgent:
                                 continue
                             entry['pnl']        = rec['pnl']
                             entry['exit_price'] = rec['exit_price']
+                            self._save_trade_log()
                             break
             except Exception as e:
                 print(f"아이린: PnL 모니터 오류: {e}")

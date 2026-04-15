@@ -236,7 +236,7 @@ class TVBridge:
             order = self.agent.executor.place_order(symbol, side, qty, lev, stop_loss=sl, take_profit=tp)
             if order:
                 import time as _t
-                self.agent.status['trade_log'].append({
+                self.agent._append_trade_log({
                     'time':        _t.strftime('%m/%d %H:%M'),
                     'ts':          int(_t.time() * 1000),
                     'symbol':      symbol,
@@ -245,7 +245,7 @@ class TVBridge:
                     'entry_price': round(float(current_price), 4),
                     'sl':          sl,
                     'tp':          tp,
-                    'account':     'webhook',
+                    'account':     'core',
                     'pnl':         None,
                     'exit_price':  None,
                 })
@@ -273,7 +273,7 @@ class TVBridge:
             order = self.agent.satellite_executor.place_order(symbol, side, qty, lev, stop_loss=sl, take_profit=tp)
             if order:
                 import time as _t
-                self.agent.status['trade_log'].append({
+                self.agent._append_trade_log({
                     'time':        _t.strftime('%m/%d %H:%M'),
                     'ts':          int(_t.time() * 1000),
                     'symbol':      symbol,
