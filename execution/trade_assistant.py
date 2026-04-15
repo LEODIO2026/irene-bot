@@ -1,5 +1,5 @@
 """
-반자동 거래 어시스턴트 — Claude API 기반 ICT 대화형 트레이딩 모듈
+반자동 거래 어시스턴트 — Claude / Gemini 선택 가능한 ICT 대화형 트레이딩 모듈
 - 차트 이미지 업로드 분석
 - ICT 기반 SL/TP 제안 + 수동 조정
 - 대화 후 실제 주문 실행 (코어 계정)
@@ -44,60 +44,59 @@ SYSTEM_PROMPT = """당신은 아이린(Irene)입니다 — ICT(Inner Circle Trad
 class TradeAssistant:
     def __init__(self, agent_instance):
         self.agent = agent_instance
-        api_key = os.getenv('ANTHROPIC_API_KEY', '')
-        if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY가 .env에 설정되지 않았습니다.")
-        self.client = Anthropic(api_key=api_key)
-        # 세션별 대화 히스토리: session_id → list of messages
+
+        # Claude 초기화
+        claude_key = os.getenv('ANTHROPIC_API_KEY', '')
+        self._claude_client = Anthropic(api_key=claude_key) if claude_key else None
+
+        # Gemini 초기화
+        self._gemini_model = None
+        gemini_key = os.getenv('GEMINI_API_KEY', '')
+        if gemini_key:
+            try:
+                import google.generativeai as genai
+                genai.configure(api_key=gemini_key)
+                self._gemini_model = genai.GenerativeModel(
+                    model_name='gemini-2.5-pro-preview-03-25',
+                    system_instruction=SYSTEM_PROMPT,
+                )
+                print("✅ 아이린: Gemini 트레이드 어시스턴트 활성화")
+            except Exception as e:
+                print(f"⚠️ 아이린: Gemini 초기화 실패: {e}")
+
+        # 세션별 히스토리: session_id → { 'claude': [...], 'gemini': [...] }
         self._sessions: dict = {}
 
     # ── 시장 데이터 조회 ─────────────────────────────────────────
     def get_market_snapshot(self, symbol: str) -> dict:
-        """현재 가격, OI, L/S, 포지션 요약"""
         try:
             df = self.agent.fetcher.fetch_ohlcv(symbol, '1h', 2)
             price = float(df.iloc[-1]['close']) if df is not None and not df.empty else 0
         except Exception:
             price = 0
-
         try:
             oi_data = self.agent.fetcher.fetch_oi_change_rate(symbol, '1h', 6)
         except Exception:
             oi_data = {}
-
         try:
             ls_data = self.agent.fetcher.fetch_long_short_history(symbol, '1h', 6)
         except Exception:
             ls_data = {}
-
         try:
             positions = self.agent.fetcher.fetch_positions(symbols=[symbol])
             pos = positions.get(symbol)
         except Exception:
             pos = None
+        return {'symbol': symbol, 'price': price, 'oi': oi_data, 'ls': ls_data, 'position': pos}
 
-        return {
-            'symbol': symbol,
-            'price': price,
-            'oi': oi_data,
-            'ls': ls_data,
-            'position': pos,
-        }
-
-    # ── 대화 처리 ────────────────────────────────────────────────
+    # ── 대화 처리 (모델 분기) ─────────────────────────────────────
     def chat(self, session_id: str, user_text: str,
              image_b64: str = None, image_mime: str = 'image/png',
-             symbol: str = 'BTC/USDT') -> dict:
-        """
-        단일 대화 턴 처리.
-        Returns: { 'reply': str, 'suggestion': {sl, tp, side} | None }
-        """
+             symbol: str = 'BTC/USDT', model: str = 'claude') -> dict:
+
         if session_id not in self._sessions:
-            self._sessions[session_id] = []
+            self._sessions[session_id] = {'claude': [], 'gemini': []}
 
-        history = self._sessions[session_id]
-
-        # 시장 데이터 컨텍스트를 첫 메시지 또는 심볼 변경 시 삽입
         snap = self.get_market_snapshot(symbol)
         market_ctx = (
             f"\n\n[현재 시장 데이터 — {symbol}]\n"
@@ -107,56 +106,82 @@ class TradeAssistant:
             f"현재 포지션: {json.dumps(snap['position'], ensure_ascii=False) if snap['position'] else '없음'}\n"
         )
 
-        # 유저 메시지 구성
+        if model == 'gemini':
+            reply_text = self._chat_gemini(session_id, user_text, image_b64, image_mime, market_ctx)
+        else:
+            reply_text = self._chat_claude(session_id, user_text, image_b64, image_mime, market_ctx)
+
+        suggestion = self._parse_suggestion(reply_text, snap['price'])
+        return {'reply': reply_text, 'suggestion': suggestion, 'market': snap, 'model': model}
+
+    # ── Claude 대화 ───────────────────────────────────────────────
+    def _chat_claude(self, session_id: str, user_text: str,
+                     image_b64: str, image_mime: str, market_ctx: str) -> str:
+        if not self._claude_client:
+            raise ValueError("ANTHROPIC_API_KEY가 .env에 설정되지 않았습니다.")
+
+        history = self._sessions[session_id]['claude']
+        full_text = user_text + market_ctx
+
         if image_b64:
             content = [
-                {
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": image_mime,
-                        "data": image_b64,
-                    }
-                },
-                {
-                    "type": "text",
-                    "text": user_text + market_ctx
-                }
+                {"type": "image", "source": {"type": "base64", "media_type": image_mime, "data": image_b64}},
+                {"type": "text", "text": full_text}
             ]
         else:
-            content = user_text + market_ctx
+            content = full_text
 
         history.append({"role": "user", "content": content})
 
-        # Claude API 호출
-        response = self.client.messages.create(
+        response = self._claude_client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=2048,
             system=SYSTEM_PROMPT,
             messages=history,
         )
+        reply = response.content[0].text
+        history.append({"role": "assistant", "content": reply})
 
-        reply_text = response.content[0].text
-        history.append({"role": "assistant", "content": reply_text})
-
-        # 히스토리 최대 30턴 유지
         if len(history) > 60:
-            self._sessions[session_id] = history[-60:]
+            self._sessions[session_id]['claude'] = history[-60:]
 
-        # SL/TP 제안 파싱 (간단한 휴리스틱)
-        suggestion = self._parse_suggestion(reply_text, snap['price'])
+        return reply
 
-        return {
-            'reply': reply_text,
-            'suggestion': suggestion,
-            'market': snap,
-        }
+    # ── Gemini 대화 ───────────────────────────────────────────────
+    def _chat_gemini(self, session_id: str, user_text: str,
+                     image_b64: str, image_mime: str, market_ctx: str) -> str:
+        if not self._gemini_model:
+            raise ValueError("GEMINI_API_KEY가 .env에 설정되지 않았습니다.")
 
+        try:
+            import google.generativeai as genai
+            import base64
+
+            history = self._sessions[session_id]['gemini']
+            chat = self._gemini_model.start_chat(history=history)
+
+            full_text = user_text + market_ctx
+            if image_b64:
+                img_bytes = base64.b64decode(image_b64)
+                parts = [
+                    {"mime_type": image_mime, "data": img_bytes},
+                    full_text
+                ]
+                response = chat.send_message(parts)
+            else:
+                response = chat.send_message(full_text)
+
+            reply = response.text
+
+            # Gemini 히스토리 업데이트 (role: user/model)
+            self._sessions[session_id]['gemini'] = chat.history[-60:]
+
+            return reply
+        except Exception as e:
+            raise RuntimeError(f"Gemini 오류: {e}")
+
+    # ── SL/TP 파싱 ────────────────────────────────────────────────
     def _parse_suggestion(self, text: str, current_price: float) -> Optional[dict]:
-        """
-        Claude 응답에서 SL/TP 숫자 추출 시도.
-        패턴: "SL: 숫자" / "TP: 숫자" / "손절: 숫자" / "익절: 숫자"
-        """
         import re
         sl_match = re.search(r'(?:SL|손절)[:\s]*([0-9,]+(?:\.[0-9]+)?)', text)
         tp_match = re.search(r'(?:TP|익절)[:\s]*([0-9,]+(?:\.[0-9]+)?)', text)
@@ -167,16 +192,13 @@ class TradeAssistant:
             return None
 
         def _parse_num(m):
-            if not m:
-                return None
             try:
-                return float(m.group(1).replace(',', ''))
+                return float(m.group(1).replace(',', '')) if m else None
             except Exception:
                 return None
 
         sl = _parse_num(sl_match)
         tp = _parse_num(tp_match)
-
         if sl is None and tp is None:
             return None
 
@@ -188,12 +210,9 @@ class TradeAssistant:
 
         return {'sl': sl, 'tp': tp, 'side': side}
 
-    # ── 거래 실행 ────────────────────────────────────────────────
+    # ── 거래 실행 ─────────────────────────────────────────────────
     def execute_trade(self, symbol: str, side: str, sl: float, tp: float,
-                      session_id: str = None) -> dict:
-        """
-        확정된 거래 실행. tv_bridge의 execute_signal과 동일한 로직.
-        """
+                      session_id: str = None, model: str = 'claude') -> dict:
         try:
             df = self.agent.fetcher.fetch_ohlcv(symbol, '1h', 100)
             if df is None or df.empty:
@@ -225,26 +244,39 @@ class TradeAssistant:
                 'account':     'core',
                 'pnl':         None,
                 'exit_price':  None,
-                'source':      'assistant',
+                'source':      f'assistant_{model}',
             }
             self.agent._append_trade_log(entry)
 
-            # 대화 히스토리에 실행 결과 기록
+            # 실행 후 대화에 결과 기록
             if session_id and session_id in self._sessions:
                 exec_msg = (
                     f"[시스템] 거래 실행 완료 ✅\n"
                     f"{symbol} {side.upper()} | 진입가: {current_price:,.4f}\n"
                     f"수량: {qty:.6f} | 레버리지: {lev}x | SL: {sl} | TP: {tp}"
                 )
-                self._sessions[session_id].append({"role": "user", "content": exec_msg})
-                confirm = self.client.messages.create(
-                    model="claude-sonnet-4-6",
-                    max_tokens=256,
-                    system=SYSTEM_PROMPT,
-                    messages=self._sessions[session_id],
-                )
-                confirm_text = confirm.content[0].text
-                self._sessions[session_id].append({"role": "assistant", "content": confirm_text})
+                if model == 'gemini' and self._gemini_model:
+                    try:
+                        history = self._sessions[session_id]['gemini']
+                        chat = self._gemini_model.start_chat(history=history)
+                        resp = chat.send_message(exec_msg)
+                        confirm_text = resp.text
+                        self._sessions[session_id]['gemini'] = chat.history[-60:]
+                    except Exception:
+                        confirm_text = f"{symbol} {side.upper()} 진입 완료. 포지션을 모니터링합니다."
+                elif self._claude_client:
+                    history = self._sessions[session_id]['claude']
+                    history.append({"role": "user", "content": exec_msg})
+                    confirm = self._claude_client.messages.create(
+                        model="claude-sonnet-4-6",
+                        max_tokens=256,
+                        system=SYSTEM_PROMPT,
+                        messages=history,
+                    )
+                    confirm_text = confirm.content[0].text
+                    history.append({"role": "assistant", "content": confirm_text})
+                else:
+                    confirm_text = f"{symbol} {side.upper()} 진입 완료."
             else:
                 confirm_text = f"{symbol} {side.upper()} 진입 완료. 포지션을 모니터링합니다."
 
@@ -259,9 +291,8 @@ class TradeAssistant:
         except Exception as e:
             return {'success': False, 'message': str(e)}
 
-    # ── 포지션 청산 ──────────────────────────────────────────────
+    # ── 포지션 청산 ───────────────────────────────────────────────
     def close_position(self, symbol: str, session_id: str = None) -> dict:
-        """열린 포지션 청산"""
         try:
             positions = self.agent.fetcher.fetch_positions(symbols=[symbol])
             pos = positions.get(symbol)
@@ -270,7 +301,6 @@ class TradeAssistant:
 
             close_side = 'sell' if pos['side'].lower() == 'long' else 'buy'
             qty = pos['size']
-
             contract_symbol = symbol if ':' in symbol else f"{symbol}:{symbol.split('/')[1]}"
             order = self.agent.fetcher.exchange.create_order(
                 symbol=contract_symbol,
@@ -279,12 +309,7 @@ class TradeAssistant:
                 amount=qty,
                 params={'reduceOnly': True}
             )
-
-            return {
-                'success': True,
-                'message': f'{symbol} 포지션 청산 완료 (수량: {qty})',
-                'order_id': order.get('id', ''),
-            }
+            return {'success': True, 'message': f'{symbol} 포지션 청산 완료 (수량: {qty})', 'order_id': order.get('id', '')}
         except Exception as e:
             return {'success': False, 'message': str(e)}
 

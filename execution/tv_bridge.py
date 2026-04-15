@@ -141,6 +141,7 @@ class TVBridge:
             symbol      = data.get('symbol', 'BTC/USDT')
             image_b64   = data.get('image_b64')   # base64 string (no data:... prefix)
             image_mime  = data.get('image_mime', 'image/png')
+            model       = data.get('model', 'claude')  # 'claude' | 'gemini'
 
             if not user_text and not image_b64:
                 return jsonify({'error': '메시지 또는 이미지가 필요합니다.'}), 400
@@ -152,6 +153,7 @@ class TVBridge:
                     image_b64=image_b64,
                     image_mime=image_mime,
                     symbol=symbol,
+                    model=model,
                 )
                 return jsonify(result), 200
             except ValueError as e:

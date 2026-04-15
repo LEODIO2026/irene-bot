@@ -65,6 +65,35 @@
     border: 1px solid rgba(129,140,248,.3);
   }
 
+  /* 모델 토글 */
+  .model-toggle {
+    display: flex;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .model-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    padding: 4px 12px;
+    border-radius: 16px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all .2s;
+    white-space: nowrap;
+  }
+  .model-btn.active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  }
+  .model-btn.claude.active { color: var(--accent); }
+  .model-btn.gemini.active { color: #4ade80; }
+
   /* ── 메인 레이아웃 ── */
   .main {
     display: flex;
@@ -480,6 +509,10 @@
   <a href="/dashboard">← 대시보드</a>
   <div class="header-title">아이린 트레이드 어시스턴트</div>
   <div class="header-badge">코어 계정</div>
+  <div class="model-toggle">
+    <button class="model-btn claude active" id="btnClaude" onclick="selectModel('claude')">🤖 Claude</button>
+    <button class="model-btn gemini" id="btnGemini" onclick="selectModel('gemini')">✦ Gemini</button>
+  </div>
   <button class="reset-btn" onclick="resetSession()">대화 초기화</button>
 </header>
 
@@ -605,6 +638,13 @@ let selectedSymbol = 'BTC/USDT';
 let selectedSide = null;
 let attachedImage = null;  // { b64, mime }
 let hasPosition = false;
+let selectedModel = 'claude';
+
+function selectModel(model) {
+  selectedModel = model;
+  document.getElementById('btnClaude').classList.toggle('active', model === 'claude');
+  document.getElementById('btnGemini').classList.toggle('active', model === 'gemini');
+}
 
 // ── 심볼 선택 ───────────────────────────────────────────
 function selectSymbol(btn) {
@@ -719,6 +759,7 @@ async function sendMessage() {
       session_id: SESSION_ID,
       message: text,
       symbol: selectedSymbol,
+      model: selectedModel,
     };
     if (imgPayload) {
       body.image_b64 = imgPayload.b64;
@@ -744,7 +785,7 @@ async function sendMessage() {
     }
 
     const data = await res.json();
-    addMessage('assistant', data.reply);
+    addMessage('assistant', data.reply, null, data.model);
 
     // SL/TP 제안 자동 채우기
     if (data.suggestion) {
@@ -778,7 +819,7 @@ async function sendMessage() {
 }
 
 // ── 메시지 DOM 추가 ──────────────────────────────────────
-function addMessage(role, text, imgSrc) {
+function addMessage(role, text, imgSrc, model) {
   const container = document.getElementById('chatMessages');
   const div = document.createElement('div');
   div.className = 'msg ' + role;
@@ -788,13 +829,19 @@ function addMessage(role, text, imgSrc) {
   if (imgSrc) {
     content += `<img class="img-preview" src="${imgSrc}">`;
   }
-  // 간단 마크다운: **bold**, *em*, SL/TP 숫자 강조
   const formatted = formatText(text);
   content += formatted;
 
+  // 어시스턴트 메시지에 모델 배지 표시
+  let modelBadge = '';
+  if (role === 'assistant' && model) {
+    const isGemini = model === 'gemini';
+    modelBadge = `<div style="font-size:10px;color:${isGemini ? '#4ade80' : 'var(--accent)'};margin-top:6px;opacity:.7">${isGemini ? '✦ Gemini' : '🤖 Claude'}</div>`;
+  }
+
   div.innerHTML = `
     <div class="avatar">${avatarText}</div>
-    <div class="bubble">${content}</div>
+    <div class="bubble">${content}${modelBadge}</div>
   `;
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
