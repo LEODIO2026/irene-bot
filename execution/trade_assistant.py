@@ -118,7 +118,8 @@ class TradeAssistant:
 
     # ── Claude 대화 ───────────────────────────────────────────────
     def _chat_claude(self, session_id: str, user_text: str,
-                     image_b64: str, image_mime: str, market_ctx: str) -> str:
+                     image_b64: str, image_mime: str, market_ctx: str,
+                     model_id: str = 'claude-sonnet-4-6') -> str:
         if not self._claude_client:
             raise ValueError("ANTHROPIC_API_KEY가 .env에 설정되지 않았습니다.")
 
@@ -136,7 +137,7 @@ class TradeAssistant:
         history.append({"role": "user", "content": content})
 
         response = self._claude_client.messages.create(
-            model="claude-sonnet-4-6",
+            model=model_id,
             max_tokens=2048,
             system=SYSTEM_PROMPT,
             messages=history,
@@ -288,7 +289,7 @@ class TradeAssistant:
                     history = self._sessions[session_id]['claude']
                     history.append({"role": "user", "content": exec_msg})
                     confirm = self._claude_client.messages.create(
-                        model="claude-sonnet-4-6",
+                        model=model,
                         max_tokens=256,
                         system=SYSTEM_PROMPT,
                         messages=history,
