@@ -229,7 +229,18 @@ class TVBridge:
             qty = risk_report['position_qty']
             lev = max(2, int(risk_report['required_leverage']) + 1)
 
-            self.agent.executor.place_order(symbol, side, qty, lev, stop_loss=sl, take_profit=tp)
+            order = self.agent.executor.place_order(symbol, side, qty, lev, stop_loss=sl, take_profit=tp)
+            if order:
+                import time as _t
+                self.agent.status['trade_log'].append({
+                    'time': _t.strftime('%m/%d %H:%M'),
+                    'symbol': symbol,
+                    'side': side.upper(),
+                    'qty': f'{qty:.6f}',
+                    'sl': sl,
+                    'tp': tp,
+                    'account': 'webhook',
+                })
         except Exception as e:
             print(f"아이린: 웹후크 처리 오류: {e}")
 

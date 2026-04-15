@@ -18,9 +18,15 @@ class Executor:
                 quote = contract_symbol.split('/')[1]
                 contract_symbol = f"{contract_symbol}:{quote}"
 
-            # 2. 레버리지 설정
-            self.exchange.set_leverage(leverage, contract_symbol)
-            print(f"아이린: 바이비트 레버리지를 {leverage}배로 셋팅했습니다. ({symbol})")
+            # 2. 레버리지 설정 (이미 동일 레버리지면 110043 반환 → 무시)
+            try:
+                self.exchange.set_leverage(leverage, contract_symbol)
+                print(f"아이린: 바이비트 레버리지를 {leverage}배로 셋팅했습니다. ({symbol})")
+            except Exception as lev_err:
+                if '110043' in str(lev_err) or 'leverage not modified' in str(lev_err).lower():
+                    pass  # 이미 같은 레버리지 — 정상
+                else:
+                    raise
             
             # 3. 메인 주문 실행
             params = {}

@@ -188,7 +188,8 @@ class IreneAgent:
                     'side': side.upper(),
                     'qty': f'{qty:.6f}',
                     'sl': sl,
-                    'tp': tp
+                    'tp': tp,
+                    'account': 'core',
                 })
                 print(f"🎉 아이린: {symbol} {side.upper()} 진입 성공! 쿨다운 {self.decision_maker.cooldown_minutes}분 시작")
             
@@ -244,8 +245,17 @@ class IreneAgent:
                     'sl': sl, 'tp': tp, 'qty': qty,
                     'risk_amount': risk_amount,
                     'compound_factor': signal['compound_factor'],
-                    'pyramid_done': False,  # 피라미딩 완료 여부
+                    'pyramid_done': False,
                 }
+                self.status['trade_log'].append({
+                    'time': time.strftime('%m/%d %H:%M'),
+                    'symbol': symbol,
+                    'side': side.upper(),
+                    'qty': f'{qty:.6f}',
+                    'sl': sl,
+                    'tp': tp,
+                    'account': 'satellite',
+                })
                 print(f"🎉 [위성] {symbol} {side.upper()} 진입 성공! 복리배율={signal['compound_factor']:.2f}x")
 
         except Exception as e:
