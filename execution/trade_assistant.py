@@ -49,18 +49,14 @@ class TradeAssistant:
         claude_key = os.getenv('ANTHROPIC_API_KEY', '')
         self._claude_client = Anthropic(api_key=claude_key) if claude_key else None
 
-        # Gemini 초기화
-        self._gemini_model = None
+        # Gemini 초기화 (google-genai 신규 SDK)
+        self._gemini_client = None
         gemini_key = os.getenv('GEMINI_API_KEY', '')
         if gemini_key:
             try:
-                import google.generativeai as genai
-                genai.configure(api_key=gemini_key)
-                self._gemini_model = genai.GenerativeModel(
-                    model_name='gemini-2.5-pro-preview-03-25',
-                    system_instruction=SYSTEM_PROMPT,
-                )
-                print("✅ 아이린: Gemini 트레이드 어시스턴트 활성화")
+                from google import genai as google_genai
+                self._gemini_client = google_genai.Client(api_key=gemini_key)
+                print("✅ 아이린: Gemini 트레이드 어시스턴트 활성화 (google-genai SDK)")
             except Exception as e:
                 print(f"⚠️ 아이린: Gemini 초기화 실패: {e}")
 
@@ -90,9 +86,14 @@ class TradeAssistant:
         return {'symbol': symbol, 'price': price, 'oi': oi_data, 'ls': ls_data, 'position': pos}
 
     # ── 대화 처리 (모델 분기) ─────────────────────────────────────
+    # 모델 ID → 제공사 구분
+    @staticmethod
+    def _provider(model_id: str) -> str:
+        return 'gemini' if model_id.startswith('gemini') else 'claude'
+
     def chat(self, session_id: str, user_text: str,
              image_b64: str = None, image_mime: str = 'image/png',
-             symbol: str = 'BTC/USDT', model: str = 'claude') -> dict:
+             symbol: str = 'BTC/USDT', model: str = 'claude-sonnet-4-6') -> dict:
 
         if session_id not in self._sessions:
             self._sessions[session_id] = {'claude': [], 'gemini': []}
@@ -106,10 +107,11 @@ class TradeAssistant:
             f"현재 포지션: {json.dumps(snap['position'], ensure_ascii=False) if snap['position'] else '없음'}\n"
         )
 
-        if model == 'gemini':
-            reply_text = self._chat_gemini(session_id, user_text, image_b64, image_mime, market_ctx)
+        provider = self._provider(model)
+        if provider == 'gemini':
+            reply_text = self._chat_gemini(session_id, user_text, image_b64, image_mime, market_ctx, model)
         else:
-            reply_text = self._chat_claude(session_id, user_text, image_b64, image_mime, market_ctx)
+            reply_text = self._chat_claude(session_id, user_text, image_b64, image_mime, market_ctx, model)
 
         suggestion = self._parse_suggestion(reply_text, snap['price'])
         return {'reply': reply_text, 'suggestion': suggestion, 'market': snap, 'model': model}
@@ -149,32 +151,44 @@ class TradeAssistant:
 
     # ── Gemini 대화 ───────────────────────────────────────────────
     def _chat_gemini(self, session_id: str, user_text: str,
-                     image_b64: str, image_mime: str, market_ctx: str) -> str:
-        if not self._gemini_model:
+                     image_b64: str, image_mime: str, market_ctx: str,
+                     model_id: str = 'gemini-3.1-pro-preview') -> str:
+        if not self._gemini_client:
             raise ValueError("GEMINI_API_KEY가 .env에 설정되지 않았습니다.")
 
         try:
-            import google.generativeai as genai
             import base64
+            from google.genai import types as gtypes
 
             history = self._sessions[session_id]['gemini']
-            chat = self._gemini_model.start_chat(history=history)
-
             full_text = user_text + market_ctx
+
+            # 현재 턴 파츠 구성
+            parts = []
             if image_b64:
                 img_bytes = base64.b64decode(image_b64)
-                parts = [
-                    {"mime_type": image_mime, "data": img_bytes},
-                    full_text
-                ]
-                response = chat.send_message(parts)
-            else:
-                response = chat.send_message(full_text)
+                parts.append(gtypes.Part.from_bytes(data=img_bytes, mime_type=image_mime))
+            parts.append(gtypes.Part.from_text(text=full_text))
 
+            # 히스토리 + 현재 메시지로 contents 구성
+            contents = list(history) + [gtypes.Content(role='user', parts=parts)]
+
+            response = self._gemini_client.models.generate_content(
+                model=model_id,
+                contents=contents,
+                config=gtypes.GenerateContentConfig(
+                    system_instruction=SYSTEM_PROMPT,
+                    temperature=0.7,
+                    max_output_tokens=2048,
+                ),
+            )
             reply = response.text
 
-            # Gemini 히스토리 업데이트 (role: user/model)
-            self._sessions[session_id]['gemini'] = chat.history[-60:]
+            # 히스토리 업데이트
+            history.append(gtypes.Content(role='user', parts=parts))
+            history.append(gtypes.Content(role='model', parts=[gtypes.Part.from_text(text=reply)]))
+            if len(history) > 60:
+                self._sessions[session_id]['gemini'] = history[-60:]
 
             return reply
         except Exception as e:
@@ -255,13 +269,19 @@ class TradeAssistant:
                     f"{symbol} {side.upper()} | 진입가: {current_price:,.4f}\n"
                     f"수량: {qty:.6f} | 레버리지: {lev}x | SL: {sl} | TP: {tp}"
                 )
-                if model == 'gemini' and self._gemini_model:
+                if self._provider(model) == 'gemini' and self._gemini_client:
                     try:
+                        from google.genai import types as gtypes
                         history = self._sessions[session_id]['gemini']
-                        chat = self._gemini_model.start_chat(history=history)
-                        resp = chat.send_message(exec_msg)
+                        contents = list(history) + [gtypes.Content(role='user', parts=[gtypes.Part.from_text(text=exec_msg)])]
+                        resp = self._gemini_client.models.generate_content(
+                            model=model,
+                            contents=contents,
+                            config=gtypes.GenerateContentConfig(system_instruction=SYSTEM_PROMPT, max_output_tokens=256),
+                        )
                         confirm_text = resp.text
-                        self._sessions[session_id]['gemini'] = chat.history[-60:]
+                        history.append(gtypes.Content(role='user', parts=[gtypes.Part.from_text(text=exec_msg)]))
+                        history.append(gtypes.Content(role='model', parts=[gtypes.Part.from_text(text=confirm_text)]))
                     except Exception:
                         confirm_text = f"{symbol} {side.upper()} 진입 완료. 포지션을 모니터링합니다."
                 elif self._claude_client:
