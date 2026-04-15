@@ -72,7 +72,7 @@ class TelegramBot:
                 session_id=f"tg_{self.chat_id}",
                 user_text=user_text,
                 symbol=self.agent.symbols[0], # 기본 심볼
-                model='claude-sonnet-4-6'
+                model='claude-3-5-sonnet-20241022'
             )
             reply = result.get('reply', '음... 뭐라고 답해야 할지 모르겠어요. 😅')
             await update.message.reply_html(reply)
@@ -100,7 +100,7 @@ class TelegramBot:
                 user_text=user_text,
                 images=[{'b64': img_b64, 'mime': 'image/png'}],
                 symbol=self.agent.symbols[0],
-                model='claude-sonnet-4-6'
+                model='claude-3-5-sonnet-20241022'
             )
             reply = result.get('reply', '이미지를 분석하는 데 문제가 생겼어요. 🙏')
             await update.message.reply_html(reply)

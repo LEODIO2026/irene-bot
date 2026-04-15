@@ -140,7 +140,7 @@ class TVBridge:
             session_id = data.get('session_id', 'default')
             user_text  = data.get('message', '').strip()
             symbol     = data.get('symbol', 'BTC/USDT')
-            model      = data.get('model', 'claude-sonnet-4-6')
+            model      = data.get('model', 'claude-3-5-sonnet-20241022')
 
             # 멀티 이미지: images=[{b64,mime},...] 또는 하위호환 단일 image_b64
             images = data.get('images') or []
