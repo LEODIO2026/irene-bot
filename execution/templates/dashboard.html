@@ -3,604 +3,732 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>아이린 트레이딩 프리미엄 모니터</title>
+<title>아이린 대시보드</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500&display=swap');
-  
-  :root {
-    --bg-color: #0f172a;
-    --card-bg: rgba(30, 41, 59, 0.4);
-    --card-border: rgba(255, 255, 255, 0.08);
-    --accent: #818cf8;
-    --text-main: #f8fafc;
-    --text-sub: #94a3b8;
-  }
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  
-  body {
-    font-family: 'Outfit', 'Inter', sans-serif;
-    color: var(--text-main);
-    min-height: 100vh;
-    padding: 20px;
-    background: linear-gradient(-45deg, #020617, #0f172a, #1e1b4b, #0f172a);
-    background-size: 400% 400%;
-    animation: gradientBG 20s ease infinite;
-    overflow-x: hidden;
-  }
+:root {
+  --bg: #070d1a;
+  --surface: rgba(15,23,42,0.7);
+  --border: rgba(255,255,255,0.07);
+  --core: #818cf8;
+  --core-bg: rgba(129,140,248,0.08);
+  --core-border: rgba(129,140,248,0.25);
+  --sat: #f472b6;
+  --sat-bg: rgba(244,114,182,0.08);
+  --sat-border: rgba(244,114,182,0.25);
+  --green: #34d399;
+  --red: #f87171;
+  --yellow: #fbbf24;
+  --text: #f1f5f9;
+  --muted: #64748b;
+  --sub: #94a3b8;
+}
 
-  @keyframes gradientBG {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
+* { margin:0; padding:0; box-sizing:border-box; }
 
-  .bg-blob { position: fixed; border-radius: 50%; filter: blur(80px); z-index: -1; opacity: 0.4; animation: float 10s ease-in-out infinite; }
-  .blob-1 { top: -10%; left: -10%; width: 40vw; height: 40vw; background: #c084fc; animation-delay: 0s; }
-  .blob-2 { bottom: -10%; right: -10%; width: 40vw; height: 40vw; background: #3b82f6; animation-delay: -5s; }
+body {
+  font-family: 'Outfit', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 16px;
+}
 
-  @keyframes float {
-    0% { transform: translate(0px, 0px) scale(1); }
-    33% { transform: translate(30px, -50px) scale(1.1); }
-    66% { transform: translate(-20px, 20px) scale(0.9); }
-    100% { transform: translate(0px, 0px) scale(1); }
-  }
+/* ── 배경 glow ── */
+body::before {
+  content:''; position:fixed; inset:0; z-index:-1;
+  background:
+    radial-gradient(ellipse 60% 40% at 15% 20%, rgba(99,102,241,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 35% at 85% 80%, rgba(244,114,182,0.10) 0%, transparent 60%);
+}
 
-  .container { max-width: 1400px; margin: 0 auto; }
-  .header { text-align: center; padding: 14px 0 10px; }
-  .header h1 {
-    font-size: 2.2em; font-weight: 800;
-    background: linear-gradient(to right, #a78bfa, #f472b6, #fb7185);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-  .header .sub { color: #cbd5e1; font-size: 0.85em; margin-top: 4px; font-weight: 300; }
-  
-  .mode-badge {
-    display: inline-block; padding: 5px 14px; border-radius: 30px; font-size: 0.75em; font-weight: 600; margin-top: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.2);
-  }
-  .mode-main { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.4); }
-  .mode-test { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.4); }
+.wrap { max-width:1440px; margin:0 auto; }
 
-  .grid-header { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 15px; }
-  .grid-symbols { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 15px; }
+/* ── 헤더 ── */
+.hd {
+  display:flex; align-items:center; justify-content:space-between;
+  padding-bottom:16px; border-bottom:1px solid var(--border); margin-bottom:18px;
+}
+.hd-left { display:flex; align-items:center; gap:12px; }
+.hd-title { font-size:1.4em; font-weight:900; letter-spacing:-0.5px;
+  background:linear-gradient(to right,#a78bfa,#f472b6); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+.hd-sub { font-size:0.72em; color:var(--muted); }
+.hd-right { display:flex; align-items:center; gap:16px; }
+.mode-pill { padding:4px 12px; border-radius:20px; font-size:0.7em; font-weight:700; }
+.mode-live { background:rgba(52,211,153,0.12); color:var(--green); border:1px solid rgba(52,211,153,0.3); }
+.mode-test { background:rgba(251,191,36,0.12); color:var(--yellow); border:1px solid rgba(251,191,36,0.3); }
+.server-time { font-size:0.7em; color:var(--muted); font-variant-numeric:tabular-nums; }
+.hb-dot { width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); animation:hb 1.5s infinite; display:inline-block; }
+@keyframes hb { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
 
-  /* OI 패널 스타일 */
-  .oi-panel { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-  .oi-chip {
-    padding: 4px 10px; border-radius: 8px; font-size: 0.65em; font-weight: 700;
-    display: flex; align-items: center; gap: 4px; border: 1px solid;
-  }
-  .oi-rising  { color: #34d399; border-color: rgba(52,211,153,0.3); background: rgba(16,185,129,0.08); }
-  .oi-falling { color: #f87171; border-color: rgba(248,113,113,0.3); background: rgba(239,68,68,0.08); }
-  .oi-neutral { color: #94a3b8; border-color: rgba(148,163,184,0.2); background: rgba(148,163,184,0.05); }
-  .oi-long-heavy  { color: #34d399; }
-  .oi-short-heavy { color: #f87171; }
-  @media(min-width: 640px)  { .grid-symbols { grid-template-columns: 1fr 1fr; } }
-  @media(min-width: 960px)  { .grid-symbols { grid-template-columns: 1fr 1fr 1fr; } }
-  @media(min-width: 1300px) { .grid-symbols { grid-template-columns: 1fr 1fr 1fr 1fr 1fr; } }
+/* ── 계정 2단 ── */
+.accounts { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+.account-card {
+  border-radius:16px; padding:16px 20px;
+  display:flex; flex-direction:column; gap:10px;
+}
+.ac-core { background:var(--core-bg); border:1px solid var(--core-border); }
+.ac-sat  { background:var(--sat-bg);  border:1px solid var(--sat-border); }
+.ac-head { display:flex; align-items:center; justify-content:space-between; }
+.ac-label { font-size:0.7em; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; }
+.ac-core .ac-label { color:var(--core); }
+.ac-sat  .ac-label { color:var(--sat); }
+.ac-badge { font-size:0.65em; padding:3px 9px; border-radius:10px; font-weight:700; }
+.ac-core .ac-badge { background:rgba(129,140,248,0.15); color:var(--core); }
+.ac-sat  .ac-badge { background:rgba(244,114,182,0.15); color:var(--sat); }
+.ac-balance { font-size:2em; font-weight:900; letter-spacing:-1px; }
+.ac-core .ac-balance { color:#c7d2fe; }
+.ac-sat  .ac-balance { color:#fbcfe8; }
+.ac-meta { display:flex; gap:20px; }
+.ac-meta-item { display:flex; flex-direction:column; gap:2px; }
+.ac-meta-label { font-size:0.6em; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+.ac-meta-val { font-size:0.85em; font-weight:700; }
 
-  .card {
-    background: var(--card-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-    border: 1px solid var(--card-border); border-radius: 14px; padding: 14px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .card:hover { transform: translateY(-3px); border-color: rgba(129, 140, 248, 0.3); box-shadow: 0 12px 40px rgba(0,0,0,0.3); }
+/* ── 활성 포지션 패널 ── */
+.pos-panel {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:16px; padding:14px 18px; margin-bottom:16px;
+}
+.panel-title { font-size:0.65em; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; }
+.pos-empty { font-size:0.78em; color:var(--muted); padding:4px 0; }
+.pos-list { display:flex; flex-wrap:wrap; gap:8px; }
+.pos-card {
+  display:flex; align-items:center; gap:10px;
+  padding:8px 14px; border-radius:12px; font-size:0.8em;
+  border:1px solid; min-width:200px;
+}
+.pos-long  { background:rgba(52,211,153,0.06); border-color:rgba(52,211,153,0.25); }
+.pos-short { background:rgba(248,113,113,0.06); border-color:rgba(248,113,113,0.25); }
+.pos-tag { font-size:0.62em; font-weight:800; text-transform:uppercase; padding:2px 6px; border-radius:5px; }
+.pos-tag-core { background:rgba(129,140,248,0.2); color:var(--core); }
+.pos-tag-sat  { background:rgba(244,114,182,0.2); color:var(--sat); }
+.pos-sym { font-weight:800; color:#e2e8f0; }
+.pos-side-long  { color:var(--green); font-weight:800; }
+.pos-side-short { color:var(--red);   font-weight:800; }
+.pos-lev  { color:var(--muted); font-size:0.9em; }
+.pos-pnl  { font-weight:800; margin-left:auto; font-variant-numeric:tabular-nums; }
+.pos-pnl-pos { color:var(--green); }
+.pos-pnl-neg { color:var(--red); }
 
-  .stat-title { font-size: 0.68em; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 5px; font-weight: 600; }
-  .stat-val { font-size: 1.4em; font-weight: 800; color: #fff; text-shadow: 0 0 15px rgba(255,255,255,0.1); }
+/* ── 탭 ── */
+.tabs { display:flex; gap:6px; margin-bottom:16px; background:rgba(0,0,0,0.25); padding:4px; border-radius:12px; width:fit-content; }
+.tab { padding:9px 20px; border-radius:9px; border:none; font-family:'Outfit'; font-size:0.8em; font-weight:700; cursor:pointer; transition:all .2s; color:var(--muted); background:transparent; }
+.tab-on { background:rgba(129,140,248,0.15); color:var(--core); }
 
-  /* 포지션 요약 칩 */
-  .pos-summary-panel { margin-bottom: 15px; padding: 10px 15px; }
-  .pos-summary-title { font-size: 0.65em; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: flex; justify-content: space-between; }
-  .pos-summary-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-  .pos-chip {
-    padding: 5px 12px; border-radius: 10px; font-size: 0.75em; font-weight: 700; display: flex; align-items: center; gap: 6px;
-    background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); transition: all 0.2s;
-  }
-  .pos-chip-long { color: #34d399; border-color: rgba(52,211,153,0.3); background: rgba(16,185,129,0.05); }
-  .pos-chip-short { color: #f87171; border-color: rgba(248,113,113,0.3); background: rgba(239,68,68,0.05); }
+/* ── 심볼 그리드 ── */
+.sym-grid { display:grid; gap:12px; grid-template-columns:1fr; }
+@media(min-width:640px)  { .sym-grid { grid-template-columns:1fr 1fr; } }
+@media(min-width:1024px) { .sym-grid { grid-template-columns:1fr 1fr 1fr; } }
+@media(min-width:1300px) { .sym-grid { grid-template-columns:repeat(5,1fr); } }
 
-  /* 탭 시스템 */
-  .tab-group { display: flex; gap: 8px; margin-bottom: 15px; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 12px; }
-  .tab-btn {
-    flex: 1; cursor: pointer; font-size: 0.8em; padding: 12px; border: none; font-weight: 700; transition: all 0.3s;
-    border-radius: 10px; font-family: 'Outfit'; background: transparent; color: #64748b;
-  }
-  .tab-active { background: rgba(129,140,248,0.2); color: #818cf8; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+/* ── 심볼 카드 ── */
+.sym-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:16px; padding:14px; transition:all .25s; cursor:pointer;
+}
+.sym-card:hover { border-color:rgba(129,140,248,0.3); transform:translateY(-2px); }
+.sym-card.entry-signal-buy  { border-color:rgba(52,211,153,0.5) !important; box-shadow:0 0 20px rgba(52,211,153,0.08); }
+.sym-card.entry-signal-sell { border-color:rgba(248,113,113,0.5) !important; box-shadow:0 0 20px rgba(248,113,113,0.08); }
 
-  /* 활동 현황 패널 */
-  .activity-panel {
-    background: var(--card-bg); backdrop-filter: blur(20px);
-    border: 1px solid var(--card-border); border-radius: 14px; padding: 12px 16px;
-    margin-bottom: 15px; display: flex; gap: 16px;
-  }
-  .activity-left { display: flex; flex-direction: column; gap: 6px; min-width: 200px; }
-  .heartbeat-row { display: flex; align-items: center; gap: 8px; font-size: 0.8em; font-weight: 700; }
-  .heartbeat-dot { width: 10px; height: 10px; border-radius: 50%; background: #34d399; box-shadow: 0 0 12px #34d399; animation: heartbeat 1.5s infinite; }
-  .heartbeat-dead { background: #ef4444; box-shadow: 0 0 12px #ef4444; animation: none; }
-  @keyframes heartbeat { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.3); opacity: 0.7; } }
-  
-  .activity-feed { flex: 1; border-left: 1px solid rgba(255,255,255,0.06); padding-left: 16px; max-height: 90px; overflow-y: auto; }
-  .feed-title { font-size: 0.65em; color: #64748b; text-transform: uppercase; margin-bottom: 6px; font-weight: 700; }
-  .feed-item { font-size: 0.7em; color: #cbd5e1; padding: 3px 0; border-bottom: 1px dotted rgba(255,255,255,0.03); display: flex; gap: 8px; }
-  .feed-time { color: #64748b; font-family: monospace; }
-  .feed-sym { color: #c084fc; font-weight: 800; min-width: 45px; }
-  
-  /* 심볼 카드 세부 */
-  .sym-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-  .sym-name { font-size: 1.05em; font-weight: 800; display: flex; align-items: center; gap: 6px; }
-  .sym-price { font-size: 1em; font-weight: 700; text-align: right; }
-  .sym-chg { font-size: 0.75em; font-weight: 700; padding: 2px 6px; border-radius: 5px; }
-  .up { background: rgba(16,185,129,0.15); color: #34d399; }
-  .down { background: rgba(239,68,68,0.15); color: #f87171; }
-  .flat { background: rgba(148,163,184,0.15); color: #cbd5e1; }
+.sym-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
+.sym-name { font-size:1em; font-weight:900; }
+.sym-ticker { color:#c7d2fe; }
+.sym-quote  { color:var(--muted); font-weight:400; font-size:.85em; }
+.sym-price-box { text-align:right; }
+.sym-price { font-size:1em; font-weight:700; font-variant-numeric:tabular-nums; }
+.chg-up   { font-size:.7em; padding:1px 5px; border-radius:4px; background:rgba(52,211,153,.12); color:var(--green); font-weight:700; }
+.chg-down { font-size:.7em; padding:1px 5px; border-radius:4px; background:rgba(248,113,113,.12); color:var(--red);   font-weight:700; }
+.chg-flat { font-size:.7em; padding:1px 5px; border-radius:4px; background:rgba(148,163,184,.12); color:var(--sub);   font-weight:700; }
 
-  .gauge-row { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
-  .gauge-wrap { position: relative; width: 95px; height: 58px; }
-  .gauge-score { position: absolute; bottom: 0; width: 100%; text-align: center; font-size: 1.4em; font-weight: 800; text-shadow: 0 0 10px currentColor; }
-  
-  .micro-bars { display: flex; flex-direction: column; gap: 3px; flex: 1; }
-  .bar-row { display: flex; align-items: center; gap: 5px; }
-  .bar-label { width: 48px; color: var(--text-sub); font-size: 0.6em; text-align: right; font-weight: 600; }
-  .bar-bg { flex: 1; background: rgba(0,0,0,0.3); height: 5px; border-radius: 3px; overflow: hidden; }
-  .bar-fill { height: 100%; transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); background: linear-gradient(90deg, #818cf8, #c084fc); }
+/* ── 레이어 체크리스트 ── */
+.layers { margin-bottom:10px; }
+.layer-row { display:flex; align-items:center; gap:7px; padding:3px 0; }
+.licon { width:16px; text-align:center; font-size:.75em; flex-shrink:0; }
+.lname { font-size:.68em; color:var(--sub); width:72px; flex-shrink:0; font-weight:600; }
+.lval  { font-size:.68em; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.l-pass    { color:var(--green); }
+.l-fail    { color:var(--red); }
+.l-pending { color:var(--muted); }
+.l-block   { color:var(--yellow); }
 
-  .action-badge { font-weight: 800; font-size: 0.7em; padding: 5px 10px; border-radius: 12px; text-align: center; display: block; margin-top: 8px; letter-spacing: 0.5px; }
-  .action-buy { background: rgba(16,185,129,0.2); color: #34d399; border: 1px solid rgba(16,185,129,0.4); }
-  .action-sell { background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.4); }
-  .action-hold { background: rgba(148,163,184,0.15); color: #cbd5e1; border: 1px solid rgba(148,163,184,0.3); }
+/* ── 신호 뱃지 ── */
+.signal-badge {
+  display:block; text-align:center; padding:7px; border-radius:10px;
+  font-size:.78em; font-weight:800; letter-spacing:.3px; margin-top:8px;
+}
+.sb-buy  { background:rgba(52,211,153,.15); color:var(--green); border:1px solid rgba(52,211,153,.3); }
+.sb-sell { background:rgba(248,113,113,.15); color:var(--red);   border:1px solid rgba(248,113,113,.3); }
+.sb-wait { background:rgba(100,116,139,.1);  color:var(--muted); border:1px solid rgba(100,116,139,.15); }
 
-  .focus-bias { font-size: 0.7em; font-weight: 800; padding: 3px 8px; border-radius: 6px; display: inline-block; margin-bottom: 8px; }
-  .bias-bullish { background: rgba(16,185,129,0.25); color: #34d399; }
-  .bias-bearish { background: rgba(239,68,68,0.25); color: #f87171; }
-  .bias-neutral { background: rgba(148,163,184,0.25); color: #cbd5e1; }
+/* ── 위성 서브섹션 ── */
+.sat-section { margin-top:10px; padding-top:9px; border-top:1px solid rgba(244,114,182,.12); }
+.sat-sec-label { font-size:.6em; font-weight:800; color:var(--sat); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
 
-  .reason-text { font-size: 0.7em; color: #cbd5e1; line-height: 1.4; margin-top: 8px; font-weight: 400; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .sym-card.expanded .reason-text { -webkit-line-clamp: unset; overflow: visible; }
-  
-  .reason-detail { max-height: 0; opacity: 0; transition: all 0.3s; overflow: hidden; margin-top: 5px;}
-  .sym-card.expanded .reason-detail { max-height: 500px; opacity: 1; padding-top: 10px; }
-  .reason-item { font-size: 0.75em; color: #94a3b8; padding: 6px 10px; border-radius: 8px; background: rgba(0,0,0,0.2); margin-bottom: 5px; border-left: 3px solid #6366f1; }
+/* ── OI/LS 칩 ── */
+.oi-row { display:flex; gap:5px; flex-wrap:wrap; margin-top:8px; }
+.oi-chip { font-size:.62em; font-weight:700; padding:2px 7px; border-radius:6px; border:1px solid; }
+.oi-r { color:var(--green); border-color:rgba(52,211,153,.25); background:rgba(52,211,153,.06); }
+.oi-f { color:var(--red);   border-color:rgba(248,113,113,.25); background:rgba(248,113,113,.06); }
+.oi-n { color:var(--muted); border-color:rgba(100,116,139,.2);  background:rgba(100,116,139,.05); }
+.ls-long  { color:var(--green); }
+.ls-short { color:var(--red); }
 
-  /* 테이블 */
-  table { width: 100%; border-collapse: separate; border-spacing: 0 6px; font-size: 0.85em; }
-  th { color: var(--text-sub); padding: 5px 12px 10px; text-align: left; font-size: 0.75em; border-bottom: 1px solid rgba(255,255,255,0.08); text-transform: uppercase; }
-  td { padding: 12px; background: rgba(15, 23, 42, 0.4); border-top: 1px solid rgba(255,255,255,0.02); }
-  tr td:first-child { border-radius: 10px 0 0 10px; }
-  tr td:last-child { border-radius: 0 10px 10px 0; }
-  .buy-tag { color: #34d399; font-weight: 800; }
-  .sell-tag { color: #f87171; font-weight: 800; }
-  .sym-tag { font-weight: 800; color: #c084fc; font-family: 'Outfit'; }
+/* ── 상세 expand ── */
+.detail-collapse { max-height:0; overflow:hidden; transition:max-height .3s; }
+.sym-card.expanded .detail-collapse { max-height:300px; }
+.reason-item { font-size:.68em; color:var(--sub); padding:4px 8px; border-radius:6px; background:rgba(0,0,0,.2); margin-top:4px; border-left:2px solid rgba(129,140,248,.3); }
 
-  .pulse { width: 10px; height: 10px; border-radius: 50%; display: inline-block; animation: pulse 2.5s infinite; }
-  .pulse-active { background: #34d399; box-shadow: 0 0 10px #34d399; }
-  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.85)} }
+/* ── 거래 로그 ── */
+.log-panel { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:14px 18px; margin-top:16px; }
+table { width:100%; border-collapse:separate; border-spacing:0 4px; font-size:.8em; }
+th { color:var(--muted); padding:4px 10px 8px; text-align:left; font-size:.68em; text-transform:uppercase; border-bottom:1px solid var(--border); }
+td { padding:9px 10px; background:rgba(0,0,0,.18); }
+tr td:first-child { border-radius:8px 0 0 8px; }
+tr td:last-child  { border-radius:0 8px 8px 0; }
+.t-buy  { color:var(--green); font-weight:800; }
+.t-sell { color:var(--red);   font-weight:800; }
+.t-sym  { color:#c084fc; font-weight:800; }
+.t-core { color:var(--core); font-size:.7em; font-weight:700; }
+.t-sat  { color:var(--sat);  font-size:.7em; font-weight:700; }
 
-  /* 백테스트 컨트롤 스타일 */
-  .control-row { display: flex; gap: 15px; margin-bottom: 20px; align-items: flex-end; flex-wrap: wrap; background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); }
-  .control-group { display: flex; flex-direction: column; gap: 6px; }
-  .control-label { font-size: 0.65em; color: var(--text-sub); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
-  .control-input {
-    background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
-    color: #fff; padding: 10px 14px; font-family: 'Outfit'; font-size: 0.85em; outline: none; transition: all 0.2s; min-width: 140px;
-  }
-  .control-input:focus { border-color: var(--accent); box-shadow: 0 0 15px rgba(129, 140, 248, 0.2); background: rgba(15, 23, 42, 0.8); }
-  select.control-input { cursor: pointer; }
-
+/* ── 백테스트 ── */
+.bt-wrap { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:18px; }
+.bt-ctrl { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:20px; padding:14px; background:rgba(0,0,0,.2); border-radius:10px; border:1px solid var(--border); }
+.ctrl-grp { display:flex; flex-direction:column; gap:5px; }
+.ctrl-lbl { font-size:.62em; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:1px; }
+.ctrl-inp { background:rgba(15,23,42,.8); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:9px 12px; font-family:'Outfit'; font-size:.82em; outline:none; min-width:130px; }
+.ctrl-inp:focus { border-color:var(--core); }
+.btn-run { padding:10px 22px; border-radius:9px; border:none; font-family:'Outfit'; font-size:.82em; font-weight:800; cursor:pointer; background:rgba(52,211,153,.15); color:var(--green); border:1px solid rgba(52,211,153,.3); transition:all .2s; }
+.btn-run:hover { background:rgba(52,211,153,.25); }
+.btn-run:disabled { opacity:.4; cursor:not-allowed; }
+.bt-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px; }
+.bt-stat-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:18px; }
+.bt-scard { background:rgba(0,0,0,.2); border:1px solid var(--border); border-radius:10px; padding:12px; }
+.bt-slabel { font-size:.62em; color:var(--muted); text-transform:uppercase; margin-bottom:4px; }
+.bt-sval { font-size:1.3em; font-weight:800; }
 </style>
 </head>
 <body>
-<div class="bg-blob blob-1"></div>
-<div class="bg-blob blob-2"></div>
+<div class="wrap">
 
-<div class="container">
-  <div class="header">
-    <h1>Irene Multi-Vision</h1>
-    <div class="sub">Advanced Autonomous ICT + AI Trading Agent v3.1 (Auto-Backtest Integrated)</div>
-    <div id="modeBadge" class="mode-badge mode-main">MAINNET ACTIVE</div>
-  </div>
-
-  <div class="grid-header">
-    <div class="card" style="border-color: rgba(129,140,248,0.3);"><div class="stat-title">🔵 Core Balance</div><div id="balance" class="stat-val" style="color:#818cf8;">--</div></div>
-    <div class="card" style="border-color: rgba(251,113,133,0.3);"><div class="stat-title">🔴 Satellite Balance</div><div id="satBalance" class="stat-val" style="color:#fb7185;">--</div><div id="satCompound" style="font-size:0.65em; color:#94a3b8; margin-top:3px;">복리 ×--</div></div>
-    <div class="card"><div class="stat-title">System Heartbeat</div><div id="uptime" class="stat-val" style="color: #a78bfa;">--</div></div>
-    <div class="card"><div class="stat-title">Risk Exposure</div><div id="riskPct" class="stat-val" style="color: #f472b6;">--</div></div>
-    <div class="card"><div class="stat-title">😱 Fear &amp; Greed</div><div id="fgiStat" class="stat-val" style="color:#fbbf24;">--</div></div>
-    <div class="card"><div class="stat-title">🐙 BTC OI Trend</div><div id="oiStat" class="stat-val" style="font-size:1.1em;">--</div></div>
-  </div>
-
-  <!-- 포지션 요약 칩 섹션 -->
-  <div class="card pos-summary-panel">
-    <div class="pos-summary-title">
-      📍 Active Positions
-      <span>
-        <span id="corePosCount" style="color:#818cf8; margin-right:12px;">🔵 Core 0</span>
-        <span id="satPosCount" style="color:#fb7185;">🔴 Satellite 0</span>
-      </span>
-    </div>
-    <div style="font-size:0.6em; color:#475569; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;">🔵 Core Account</div>
-    <div id="posSummaryGrid" class="pos-summary-grid" style="margin-bottom:10px;"><div class="pos-chip" style="color:#64748b">📡 Waiting...</div></div>
-    <div style="font-size:0.6em; color:#475569; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px;">🔴 Satellite Account</div>
-    <div id="satPosSummaryGrid" class="pos-summary-grid"><div class="pos-chip" style="color:#64748b">📡 Waiting...</div></div>
-  </div>
-
-  <!-- 탭 시스템 -->
-  <div class="tab-group">
-    <button id="tabLive" class="tab-btn tab-active" onclick="showTab('live')">📡 실시간 모니터링</button>
-    <button id="tabBacktest" class="tab-btn" onclick="showTab('backtest')">📊 백테스트 분석 (v3)</button>
-  </div>
-
-  <!-- 실시간 감시 섹션 -->
-  <div id="liveSection">
-    <div class="activity-panel">
-      <div class="activity-left">
-        <div class="heartbeat-row"><div class="heartbeat-dot" id="heartbeatDot"></div><span id="heartStatus">ALIVE</span> <span id="lastScanTime" style="color:#64748b">--</span></div>
-        <div style="font-size:0.7em; color:#94a3b8; margin-top:6px;">🔄 <span id="currentScanSym" style="color:#c084fc; font-weight:700">Scanning..</span> | 📊 Scans: <span id="totalScans" style="color:#f472b6; font-weight:700">0</span></div>
-      </div>
-      <div class="activity-feed" id="activityFeed">
-        <div class="feed-title">📡 Intelligence Stream</div>
-        <div class="feed-item">Initializing neural pathways...</div>
-      </div>
-    </div>
-    <div id="symbolsContainer" class="grid-symbols"></div>
-    
-    <div class="card" style="margin-top: 15px;">
-      <div class="stat-title">Real-time Execution History</div>
-      <div id="tradeLog" style="margin-top:10px; overflow-x: auto;"></div>
+<!-- ── 헤더 ── -->
+<div class="hd">
+  <div class="hd-left">
+    <span class="hb-dot" id="hbDot"></span>
+    <div>
+      <div class="hd-title">Irene v5</div>
+      <div class="hd-sub">ICT Barbell Strategy · Core v5 + Satellite v3</div>
     </div>
   </div>
-
-  <!-- 백테스트 섹션 -->
-  <div id="backtestSection" style="display: none;">
-    <div class="card" style="border-color: rgba(129, 140, 248, 0.4); min-height: 550px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-        <div>
-          <h2 style="font-size: 1.4em; color:#a78bfa; font-weight:800;">神級 v3 Backtest Engine</h2>
-          <p style="font-size:0.8em; color:#94a3b8; margin-top:2px;">Simulation based on historical confluence spikes & mock indicators</p>
-        </div>
-        <button id="runBacktestBtn" class="action-badge action-buy" style="padding:12px 24px; font-size:0.9em; cursor:pointer;" onclick="runBacktest()">🚀 Run Simulation</button>
-      </div>
-
-      <div class="control-row">
-        <div class="control-group">
-          <label class="control-label">Target Symbol</label>
-          <select id="btSymbol" class="control-input">
-            <option value="BTC/USDT">BTC / USDT</option>
-            <option value="ETH/USDT">ETH / USDT</option>
-            <option value="SOL/USDT">SOL / USDT</option>
-            <option value="XRP/USDT">XRP / USDT</option>
-            <option value="BNB/USDT">BNB / USDT</option>
-          </select>
-        </div>
-        <div class="control-group">
-          <label class="control-label">Historical Period (Candles)</label>
-          <input type="number" id="btLimit" class="control-input" value="2000" min="100" max="5000">
-        </div>
-        <div style="flex: 1; text-align: right; color: #64748b; font-size: 0.7em; font-weight: 500; margin-bottom: 8px;">
-          * 15분봉 기준 분석 시뮬레이션
-        </div>
-      </div>
-
-      <div id="backtestLoading" style="display:none; text-align:center; padding: 80px 0;">
-        <div class="pulse pulse-active" style="width:25px; height:25px;"></div>
-        <div style="margin-top:20px; font-weight:700; color:#818cf8; font-size:1.1em;">Irene is traveling back in time to verify logic...</div>
-        <p id="btLoadingMsg" style="color:#64748b; font-size:0.8em; margin-top:8px;">Estimated time: 30 ~ 60 seconds</p>
-      </div>
-
-      <div id="backtestResults" style="display:none;">
-        <div class="grid-header" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 12px;">
-          <div class="card" style="background:rgba(15, 23, 42, 0.5);"><div class="stat-title">Net Profit</div><div id="btFinalPnl" class="stat-val">--</div></div>
-          <div class="card" style="background:rgba(15, 23, 42, 0.5);"><div class="stat-title">ROI (%)</div><div id="btRoi" class="stat-val">--</div></div>
-          <div class="card" style="background:rgba(15, 23, 42, 0.5);"><div class="stat-title">Max Drawdown</div><div id="btMdd" class="stat-val">--</div></div>
-        </div>
-        <div class="grid-header" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 25px;">
-          <div class="card" style="background:rgba(0,0,0,0.2);"><div class="stat-title">Total Trades</div><div id="btTotalTrades" class="stat-val">--</div></div>
-          <div class="card" style="background:rgba(0,0,0,0.2);"><div class="stat-title">Win Trades</div><div id="btWinTrades" class="stat-val" style="color: #34d399;">--</div></div>
-          <div class="card" style="background:rgba(0,0,0,0.2);"><div class="stat-title">Loss Trades</div><div id="btLossTrades" class="stat-val" style="color: #f87171;">--</div></div>
-          <div class="card" style="background:rgba(129, 140, 248, 0.1); border-color: rgba(129, 140, 248, 0.3);"><div class="stat-title">Win Rate</div><div id="btWinRate" class="stat-val" style="color: #818cf8;">--</div></div>
-        </div>
-        <div class="card" style="background:rgba(15, 23, 42, 0.4); margin-bottom: 25px;">
-          <div class="stat-title">Calculated Equity Curve</div>
-          <div style="height: 300px;"><canvas id="backtestChart"></canvas></div>
-        </div>
-        <div class="stat-title">Simulation Trade Logs</div>
-        <div id="backtestLog" style="margin-top:12px; overflow-x: auto;"></div>
-      </div>
-    </div>
+  <div class="hd-right">
+    <div id="modePill" class="mode-pill mode-live">MAINNET</div>
+    <div class="server-time" id="srvTime">--:--:--</div>
   </div>
-
 </div>
 
+<!-- ── 계정 현황 ── -->
+<div class="accounts">
+  <!-- 코어 -->
+  <div class="account-card ac-core">
+    <div class="ac-head">
+      <div class="ac-label">🔵 Core Account</div>
+      <div class="ac-badge" id="coreStratBadge">v5 · OI/LS 포지션 사이징</div>
+    </div>
+    <div class="ac-balance" id="coreBalance">$--</div>
+    <div class="ac-meta">
+      <div class="ac-meta-item">
+        <div class="ac-meta-label">Risk / Trade</div>
+        <div class="ac-meta-val" id="coreRisk" style="color:var(--core)">--%</div>
+      </div>
+      <div class="ac-meta-item">
+        <div class="ac-meta-label">Active Pos</div>
+        <div class="ac-meta-val" id="corePosN" style="color:var(--green)">0</div>
+      </div>
+      <div class="ac-meta-item">
+        <div class="ac-meta-label">Uptime</div>
+        <div class="ac-meta-val" id="coreUptime" style="color:var(--sub)">--</div>
+      </div>
+      <div class="ac-meta-item">
+        <div class="ac-meta-label">BTC OI</div>
+        <div class="ac-meta-val" id="oiMeta" style="color:var(--sub)">--</div>
+      </div>
+    </div>
+  </div>
+  <!-- 위성 -->
+  <div class="account-card ac-sat">
+    <div class="ac-head">
+      <div class="ac-label">🔴 Satellite Account</div>
+      <div class="ac-badge">v3 · Sweep+FVG 공격 전략</div>
+    </div>
+    <div class="ac-balance" id="satBalance">$--</div>
+    <div class="ac-meta">
+      <div class="ac-meta-item">
+        <div class="ac-meta-label">복리 배율</div>
+        <div class="ac-meta-val" id="satCompound" style="color:var(--sat)">×--</div>
+      </div>
+      <div class="ac-meta-item">
+        <div class="ac-meta-label">Active Pos</div>
+        <div class="ac-meta-val" id="satPosN" style="color:var(--green)">0</div>
+      </div>
+      <div class="ac-meta-item">
+        <div class="ac-meta-label">Fear &amp; Greed</div>
+        <div class="ac-meta-val" id="fgiMeta" style="color:var(--yellow)">--</div>
+      </div>
+      <div class="ac-meta-item">
+        <div class="ac-meta-label">L/S Ratio</div>
+        <div class="ac-meta-val" id="lsMeta" style="color:var(--sub)">--</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 활성 포지션 ── -->
+<div class="pos-panel">
+  <div class="panel-title">
+    <span>📍 Active Positions</span>
+    <span id="posTotal" style="color:var(--muted);font-size:1em;">0개</span>
+  </div>
+  <div id="posList" class="pos-list">
+    <div class="pos-empty">포지션 없음 — 진입 자리 탐색 중</div>
+  </div>
+</div>
+
+<!-- ── 탭 ── -->
+<div class="tabs">
+  <button id="tabLive" class="tab tab-on" onclick="showTab('live')">📡 진입 모니터</button>
+  <button id="tabBT"   class="tab"        onclick="showTab('bt')">📊 백테스트</button>
+</div>
+
+<!-- ── 실시간 섹션 ── -->
+<div id="liveSection">
+  <div id="symGrid" class="sym-grid"></div>
+
+  <!-- 거래 로그 -->
+  <div class="log-panel">
+    <div class="panel-title">실행 히스토리</div>
+    <div id="tradeLog"><div class="pos-empty">거래 없음</div></div>
+  </div>
+</div>
+
+<!-- ── 백테스트 섹션 ── -->
+<div id="btSection" style="display:none;">
+  <div class="bt-wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+      <div>
+        <div style="font-size:1.1em;font-weight:800;color:var(--core);">Backtest Engine</div>
+        <div style="font-size:.75em;color:var(--muted);margin-top:2px;">Historical confluence simulation</div>
+      </div>
+      <button id="btnRun" class="btn-run" onclick="runBT()">🚀 Run Simulation</button>
+    </div>
+    <div class="bt-ctrl">
+      <div class="ctrl-grp">
+        <label class="ctrl-lbl">Symbol</label>
+        <select id="btSym" class="ctrl-inp">
+          <option value="BTC/USDT">BTC/USDT</option>
+          <option value="ETH/USDT">ETH/USDT</option>
+          <option value="SOL/USDT">SOL/USDT</option>
+          <option value="XRP/USDT">XRP/USDT</option>
+          <option value="BNB/USDT">BNB/USDT</option>
+        </select>
+      </div>
+      <div class="ctrl-grp">
+        <label class="ctrl-lbl">Candles (15m)</label>
+        <input type="number" id="btLim" class="ctrl-inp" value="2000" min="100" max="5000">
+      </div>
+    </div>
+    <div id="btLoading" style="display:none;text-align:center;padding:60px 0;">
+      <div class="hb-dot" style="width:20px;height:20px;"></div>
+      <div style="margin-top:16px;color:var(--core);font-weight:700;">아이린이 과거를 분석 중...</div>
+    </div>
+    <div id="btResults" style="display:none;">
+      <div class="bt-stats">
+        <div class="bt-scard"><div class="bt-slabel">Net Profit</div><div class="bt-sval" id="btPnl">--</div></div>
+        <div class="bt-scard"><div class="bt-slabel">ROI</div><div class="bt-sval" id="btRoi">--</div></div>
+        <div class="bt-scard"><div class="bt-slabel">Max Drawdown</div><div class="bt-sval" id="btMdd">--</div></div>
+      </div>
+      <div class="bt-stat-4">
+        <div class="bt-scard"><div class="bt-slabel">Total Trades</div><div class="bt-sval" id="btTotal">--</div></div>
+        <div class="bt-scard"><div class="bt-slabel">Wins</div><div class="bt-sval" id="btWins" style="color:var(--green)">--</div></div>
+        <div class="bt-scard"><div class="bt-slabel">Losses</div><div class="bt-sval" id="btLoss" style="color:var(--red)">--</div></div>
+        <div class="bt-scard"><div class="bt-slabel">Win Rate</div><div class="bt-sval" id="btWr" style="color:var(--core)">--</div></div>
+      </div>
+      <div class="bt-scard" style="margin-bottom:18px;">
+        <div class="bt-slabel" style="margin-bottom:10px;">Equity Curve</div>
+        <div style="height:260px;"><canvas id="btChart"></canvas></div>
+      </div>
+      <div id="btLog" style="overflow-x:auto;"></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+
 <script>
-let charts = {};
-let backtestChart = null;
+let btChart = null;
 
-function showTab(type) {
-  document.getElementById('liveSection').style.display = type === 'live' ? 'block' : 'none';
-  document.getElementById('backtestSection').style.display = type === 'backtest' ? 'block' : 'none';
-  document.getElementById('tabLive').className = 'tab-btn ' + (type === 'live' ? 'tab-active' : '');
-  document.getElementById('tabBacktest').className = 'tab-btn ' + (type === 'backtest' ? 'tab-active' : '');
-  if (type === 'backtest') loadBacktestResults();
-}
+// ── 레이어 파싱 ────────────────────────────────────────────────────────
+const LAYERS_CORE = [
+  { key:'kz',     label:'킬존',    icon:'🕐' },
+  { key:'bos',    label:'1D 구조', icon:'🏛' },
+  { key:'ema200', label:'200EMA',  icon:'📏' },
+  { key:'mom4h',  label:'4H 모멘', icon:'📈' },
+  { key:'sweep',  label:'15m 스윕',icon:'🎯' },
+  { key:'fvg',    label:'FVG',     icon:'📦' },
+];
+const LAYERS_SAT = [
+  { key:'kz',    label:'킬존',    icon:'🕐' },
+  { key:'bos',   label:'1D 구조', icon:'🏛' },
+  { key:'ema',   label:'200EMA',  icon:'📏' },
+  { key:'sweep', label:'스윕',    icon:'🎯' },
+  { key:'fvg',   label:'FVG',     icon:'📦' },
+];
 
-async function runBacktest() {
-  const btn = document.getElementById('runBacktestBtn');
-  const symbol = document.getElementById('btSymbol').value;
-  const limit = document.getElementById('btLimit').value;
+const BLOCK_MARKERS = ['⛔','❌','⚠️','⏸','⏳'];
+const PASS_MARKERS  = ['⚡','🏛','📏','📈','🎯','📦','🔄','✅'];
 
-  if (!limit || limit < 100) { alert('최소 100봉 이상 설정해주세요.'); return; }
+function isBlock(r) { return BLOCK_MARKERS.some(m => r.startsWith(m)); }
+function isPass(r)  { return PASS_MARKERS.some(m => r.startsWith(m)); }
 
-  const btLoadingMsg = document.getElementById('btLoadingMsg');
-  if (limit > 3000) {
-    btLoadingMsg.textContent = '대량의 데이터를 분석하며 시간을 여행 중입니다 (1~3분 소요)...';
-  } else {
-    btLoadingMsg.textContent = '아이린이 과거 데이터를 복기하며 로직을 검증하고 있어요... (30~60초)';
-  }
+// reasons 배열 → 레이어 상태 배열
+function parseLayerStatus(reasons, layers) {
+  // 어떤 레이어까지 통과했는지 순차적으로 추적
+  const blocked = reasons.find(r => isBlock(r));
+  const passed  = reasons.filter(r => isPass(r));
+  const passedCount = passed.length;
 
-  btn.disabled = true; btn.textContent = '⏳ Processing..';
-  try {
-    const res = await fetch('/api/backtest/run', { 
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ symbol, limit: parseInt(limit) })
-    });
-    const data = await res.json();
-    if (data.status === 'success') {
-      document.getElementById('backtestLoading').style.display = 'block';
-      document.getElementById('backtestResults').style.display = 'none';
-      pollBacktestStatus();
-    } else { alert(data.message); btn.disabled = false; btn.textContent = '🚀 Run Simulation'; }
-  } catch(e) { console.error(e); btn.disabled = false; btn.textContent = '🚀 Run Simulation'; }
-}
-
-async function pollBacktestStatus() {
-  const res = await fetch('/api/status');
-  const d = await res.json();
-  if (d.backtest_status === 'running') { setTimeout(pollBacktestStatus, 3000); }
-  else {
-    document.getElementById('backtestLoading').style.display = 'none';
-    document.getElementById('runBacktestBtn').disabled = false;
-    document.getElementById('runBacktestBtn').textContent = '🚀 Run Simulation';
-    loadBacktestResults();
-  }
-}
-
-async function loadBacktestResults() {
-  const res = await fetch('/api/backtest/results');
-  const d = await res.json();
-  if (d.status === 'no_results') return;
-  
-  // ── 새로운 JSON 구조: summary 키 하위에서 읽기 ──
-  const s = d.summary || d; // 하위 호환성 유지
-  const netProfit = s.net_profit ?? d.pnl_usdt ?? 0;
-  const roi       = s.roi       ?? d.roi_pct   ?? 0;
-  const winRate   = s.win_rate  ?? d.win_rate_pct ?? 0;
-  const mdd       = s.max_drawdown ?? d.mdd_pct ?? 0;
-  const total     = s.total_trades ?? d.total_trades ?? 0;
-  const wins      = s.win_trades   ?? d.win_trades   ?? 0;
-  const losses    = s.loss_trades  ?? d.loss_trades  ?? 0;
-
-  document.getElementById('backtestResults').style.display = 'block';
-  document.getElementById('btFinalPnl').textContent = '$' + Number(netProfit).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-  document.getElementById('btFinalPnl').style.color = netProfit >= 0 ? '#34d399' : '#f87171';
-  document.getElementById('btRoi').textContent = (roi >= 0 ? '+' : '') + Number(roi).toFixed(2) + '%';
-  document.getElementById('btWinRate').textContent = Number(winRate).toFixed(1) + '%';
-  document.getElementById('btMdd').textContent = Number(mdd).toFixed(2) + '%';
-  document.getElementById('btTotalTrades').textContent = total + '회';
-  document.getElementById('btWinTrades').textContent = wins + '회';
-  document.getElementById('btLossTrades').textContent = losses + '회';
-
-  const ctx = document.getElementById('backtestChart').getContext('2d');
-  if (backtestChart) backtestChart.destroy();
-  backtestChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: d.equity_curve.map((_, i) => i + 'th'),
-      datasets: [{ data: d.equity_curve, borderColor: '#818cf8', borderWidth: 3, fill: true, backgroundColor: 'rgba(129,140,248,0.1)', tension:0.4, pointRadius:0 }]
-    },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { ticks: { color: '#94a3b8' }, grid: { color:'rgba(255,255,255,0.05)' } } } }
-  });
-
-  let html = '<table><tr><th>Timestamp</th><th>Side</th><th>Entry</th><th>Exit</th><th>Profit (USDT)</th></tr>';
-  [...(d.trades || [])].reverse().forEach(t => {
-    const resColor = t.result === 'profit' ? '#34d399' : (t.result === 'forced_exit' ? '#fbbf24' : '#f87171');
-    const exitPrice = t.exit_price ? '$' + Number(t.exit_price).toLocaleString() : '-';
-    const pnl = typeof t.pnl === 'number' ? (t.pnl > 0 ? '+' : '') + t.pnl.toFixed(2) : '-';
-    html += `<tr><td>${t.entry_time}</td><td class="${t.side === 'buy' ? 'buy-tag' : 'sell-tag'}">${t.side.toUpperCase()}</td><td>$${Number(t.entry_price).toLocaleString()}</td><td>${exitPrice}</td><td style="color:${resColor}; font-weight:800;">${pnl}</td></tr>`;
-  });
-  html += '</table>';
-  document.getElementById('backtestLog').innerHTML = html;
-}
-
-function getNeonColor(score) { return score >= 5 ? '#34d399' : (score >= 3 ? '#fbbf24' : '#94a3b8'); }
-function utcToKST(utc) { if(!utc || utc==='-') return '--:--:--'; const d = new Date(utc+'Z'); const kst = new Date(d.getTime() + 9*3600*1000); return kst.toTimeString().split(' ')[0]; }
-
-function initDOM(symbols) {
-  let html = '';
-  symbols.forEach((s, i) => {
-    html += `<div class="card sym-card" id="card_${i}" onclick="this.classList.toggle('expanded')"><div class="sym-header"><div class="sym-name"><span class="pulse pulse-active"></span> ${s.symbol}</div><div class="sym-price" id="p_val_${i}">-</div></div>
-    <div class="gauge-row"><div><div class="gauge-wrap"><canvas id="gauge_${i}" width="95" height="58"></canvas><div class="gauge-score" id="g_score_${i}">0</div></div><div class="action-badge action-hold" id="ab_${i}">SEARCHING</div></div>
-    <div class="micro-bars">${['KillZ', 'Trend', 'Zone', '4H_S', 'Sweep', 'POI', 'OTE', '🧠Sm', '💎Wh', '🐙Ma', '📰Ne'].map((L, j) => `<div class="bar-row"><div class="bar-label">${L}</div><div class="bar-bg"><div id="b_${i}_${j}" class="bar-fill"></div></div></div>`).join('')}</div></div>
-    <div style="margin-top:12px;"><div class="focus-bias" id="fb_${i}">NEUTRAL</div><div class="reason-text" id="desc_${i}">Evaluating structure...</div><div class="reason-detail" id="detail_${i}"></div><div class="oi-panel" id="oi_${i}"></div></div></div>`;
-  });
-  document.getElementById('symbolsContainer').innerHTML = html;
-  symbols.forEach((s, i) => {
-    const ctx = document.getElementById('gauge_'+i).getContext('2d');
-    charts[i] = new Chart(ctx, { type:'doughnut', data:{datasets:[{data:[0,10], backgroundColor:['#818cf8','rgba(255,255,255,0.05)'], borderWidth:0, circumference:180, rotation:270}]}, options:{cutout:'78%', plugins:{legend:{display:false}, tooltip:{enabled:false}}, animation: false} });
+  return layers.map((l, i) => {
+    if (i < passedCount) return { state:'pass',  text: passed[i] || '' };
+    if (i === passedCount && blocked) return { state:'block', text: blocked };
+    return { state:'pending', text:'' };
   });
 }
+
+function layerHTML(reasons, layers) {
+  const states = parseLayerStatus(reasons, layers);
+  return states.map((s, i) => {
+    const l = layers[i];
+    let cls, icon;
+    if      (s.state === 'pass')    { cls = 'l-pass';    icon = '✓'; }
+    else if (s.state === 'block')   { cls = 'l-block';   icon = '✗'; }
+    else                            { cls = 'l-pending';  icon = '○'; }
+    const text = s.text
+      ? s.text.replace(/^[^\w가-힣a-zA-Z$0-9]*/, '').slice(0, 28)
+      : (s.state === 'pending' ? '대기 중...' : '');
+    return `<div class="layer-row">
+      <span class="licon" style="color:${s.state==='pass'?'var(--green)':s.state==='block'?'var(--yellow)':'var(--muted)'}">${icon}</span>
+      <span class="lname ${cls}">${l.icon} ${l.label}</span>
+      <span class="lval  ${cls}">${text}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── 심볼 그리드 초기화 ─────────────────────────────────────────────────
+function buildSymGrid(symbols) {
+  const g = document.getElementById('symGrid');
+  g.innerHTML = symbols.map((s, i) => `
+    <div class="sym-card" id="sc_${i}" onclick="this.classList.toggle('expanded')">
+      <div class="sym-top">
+        <div class="sym-name">
+          <span class="sym-ticker">${s.symbol.split('/')[0]}</span><span class="sym-quote">/${s.symbol.split('/')[1]}</span>
+        </div>
+        <div class="sym-price-box">
+          <div class="sym-price" id="sp_${i}">--</div>
+          <div id="schg_${i}">--</div>
+        </div>
+      </div>
+      <!-- 코어 레이어 -->
+      <div class="layers" id="cl_${i}"></div>
+      <div id="csb_${i}" class="signal-badge sb-wait">⏳ 대기</div>
+      <!-- OI/LS -->
+      <div class="oi-row" id="oi_${i}"></div>
+      <!-- 위성 서브 -->
+      <div class="sat-section">
+        <div class="sat-sec-label">🔴 Satellite</div>
+        <div class="layers" id="sl_${i}"></div>
+        <div id="ssb_${i}" class="signal-badge sb-wait" style="border-color:rgba(244,114,182,.2);color:var(--sat);">⏳ 대기</div>
+      </div>
+      <!-- 상세 expand -->
+      <div class="detail-collapse">
+        <div style="margin-top:10px;font-size:.62em;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;">Core Reasons</div>
+        <div id="dr_${i}"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── 메인 업데이트 ──────────────────────────────────────────────────────
+let inited = false;
 
 async function update() {
   try {
     const res = await fetch('/api/status');
     const d = await res.json();
-    if(!d.symbols) return;
-    if(Object.keys(charts).length !== d.symbols.length) initDOM(d.symbols);
-    
-    document.getElementById('balance').textContent = '$'+(d.balance||0).toLocaleString();
-    document.getElementById('satBalance').textContent = '$'+(d.satellite_balance||0).toLocaleString();
-    const compound = d.satellite_compound ?? 1.0;
-    const compoundEl = document.getElementById('satCompound');
-    compoundEl.textContent = '복리 ×' + compound.toFixed(2);
-    compoundEl.style.color = compound >= 2.0 ? '#34d399' : (compound >= 1.0 ? '#a78bfa' : '#f87171');
-    document.getElementById('uptime').textContent = d.uptime;
-    document.getElementById('riskPct').textContent = d.risk_pct+'%';
-    
-    // 포지션 요약 칩
-    const summaryGrid = document.getElementById('posSummaryGrid');
-    const satSummaryGrid = document.getElementById('satPosSummaryGrid');
-    let activePosCount = 0;
-    let satActivePosCount = 0;
-    let chipsHTML = '';
-    let satChipsHTML = '';
-    
-    let latestTs = 0, latestSym = '--', scanSum = 0;
+    if (!d.symbols) return;
+
+    // 그리드 초기화
+    if (!inited || document.getElementById('sc_0') === null) {
+      buildSymGrid(d.symbols);
+      inited = true;
+    }
+
+    // 헤더
+    document.getElementById('srvTime').textContent = d.server_time || '--';
+    const pill = document.getElementById('modePill');
+    pill.textContent = d.mode;
+    pill.className = 'mode-pill ' + (d.mode === 'MAINNET' ? 'mode-live' : 'mode-test');
+
+    // 코어 계정
+    document.getElementById('coreBalance').textContent = '$' + (d.balance||0).toLocaleString(undefined,{maximumFractionDigits:2});
+    document.getElementById('coreRisk').textContent = (d.risk_pct||2) + '%';
+    document.getElementById('coreUptime').textContent = d.uptime || '--';
+
+    // 위성 계정
+    document.getElementById('satBalance').textContent = '$' + (d.satellite_balance||0).toLocaleString(undefined,{maximumFractionDigits:2});
+    const cf = d.satellite_compound ?? 1.0;
+    const satCEl = document.getElementById('satCompound');
+    satCEl.textContent = '×' + cf.toFixed(2);
+    satCEl.style.color = cf >= 2.0 ? 'var(--green)' : cf >= 1.0 ? 'var(--sat)' : 'var(--red)';
+
+    // BTC OI/LS/FGI
+    const btc = d.symbols.find(s => s.symbol === 'BTC/USDT');
+    if (btc) {
+      const oi = btc.god_tier?.whale?.oi_info || {};
+      if (oi.oi_change_pct !== undefined) {
+        const v = Number(oi.oi_change_pct).toFixed(1);
+        const icon = oi.oi_trend === 'rising' ? '📈' : oi.oi_trend === 'falling' ? '📉' : '➡️';
+        document.getElementById('oiMeta').textContent = icon + ' ' + (v>=0?'+':'') + v + '%';
+        document.getElementById('oiMeta').style.color = oi.oi_trend==='rising'?'var(--green)':oi.oi_trend==='falling'?'var(--red)':'var(--muted)';
+      }
+      if (btc.fear_greed !== undefined) {
+        const fg = btc.fear_greed;
+        document.getElementById('fgiMeta').textContent = fg + (fg<=25?' 공포':fg>=75?' 탐욕':'');
+        document.getElementById('fgiMeta').style.color = fg<=25?'var(--red)':fg>=75?'var(--green)':'var(--yellow)';
+      }
+      if (oi.ls_ratio !== undefined) {
+        const lsEl = document.getElementById('lsMeta');
+        lsEl.textContent = Number(oi.ls_ratio).toFixed(2) + (oi.ls_bias==='long_heavy'?' 🟢롱우세':oi.ls_bias==='short_heavy'?' 🔴숏우세':'');
+        lsEl.style.color = oi.ls_bias==='long_heavy'?'var(--green)':oi.ls_bias==='short_heavy'?'var(--red)':'var(--sub)';
+      }
+    }
+
+    // 포지션 집계
+    let corePosN = 0, satPosN = 0;
+    const posItems = [];
+
     d.symbols.forEach((s, i) => {
-      scanSum += s.scan_count;
-      document.getElementById(`p_val_${i}`).textContent = '$'+(s.price||0).toLocaleString();
-      const c = s.confluence || 0;
-      charts[i].data.datasets[0].data = [c, 10-c];
-      charts[i].data.datasets[0].backgroundColor[0] = getNeonColor(c);
-      charts[i].update();
-      document.getElementById(`g_score_${i}`).textContent = c.toFixed(1);
-      document.getElementById(`g_score_${i}`).style.color = getNeonColor(c);
-      
-      const ab = document.getElementById(`ab_${i}`);
-      ab.className = 'action-badge ' + (s.action==='buy' ? 'action-buy' : (s.action==='sell' ? 'action-sell' : 'action-hold'));
-      ab.textContent = s.action === 'hold' ? '⏳ NEUTRAL' : '🚀 ' + s.action.toUpperCase();
-      
-      const biasLabel = s.reasons[0]?.toUpperCase() || 'NEUTRAL';
-      document.getElementById(`fb_${i}`).textContent = biasLabel;
-      document.getElementById(`fb_${i}`).className = 'focus-bias ' + (biasLabel.includes('BULL') ? 'bias-bullish' : (biasLabel.includes('BEAR') ? 'bias-bearish' : 'bias-neutral'));
-      document.getElementById(`desc_${i}`).textContent = s.reasons.slice(1).join(' • ') || 'Waiting for high-probability signals...';
-      
-      const detailEl = document.getElementById(`detail_${i}`);
-      if (detailEl) detailEl.innerHTML = s.reasons.map(r => `<div class="reason-item">${r}</div>`).join('');
-
-      const sc = s.scores || {};
-      [sc.kill_zone, sc.htf, sc.pd, sc.structure_4h, sc.sweep, sc.poi, sc.ote, sc.crowd, sc.smart_money, sc.whale, sc.news].forEach((v, j) => {
-        const fillEl = document.getElementById(`b_${i}_${j}`);
-        if(fillEl) fillEl.style.width = (v||0)+'%';
-      });
-      
-      if(s.last_scan && s.last_scan !== '-') {
-        const ts = new Date(s.last_scan+'Z').getTime();
-        if(ts > latestTs) { latestTs = ts; latestSym = s.symbol.split('/')[0]; }
+      // 심볼 카드 업데이트
+      const priceEl = document.getElementById(`sp_${i}`);
+      const chgEl   = document.getElementById(`schg_${i}`);
+      if (priceEl) priceEl.textContent = '$' + (s.price||0).toLocaleString(undefined,{maximumFractionDigits:2});
+      if (chgEl) {
+        const c = s.change_pct || 0;
+        chgEl.className = c > 0 ? 'chg-up' : c < 0 ? 'chg-down' : 'chg-flat';
+        chgEl.textContent = (c>0?'+':'') + c.toFixed(2) + '%';
       }
 
-      // 코어 포지션 체크
-      if (s.position && s.position.side) {
-        activePosCount++;
-        const p = s.position;
-        const colorCls = p.side === 'long' ? 'pos-chip-long' : 'pos-chip-short';
-        const pnlSign = p.unrealized_pnl >= 0 ? '+' : '';
-        chipsHTML += `<div class="pos-chip ${colorCls}" style="border-color:rgba(129,140,248,0.4);"><span>🔵 ${s.symbol.split('/')[0]}</span><span>${p.side.toUpperCase()} ×${p.leverage}</span><span>${pnlSign}$${p.unrealized_pnl}</span></div>`;
+      // 카드 테두리 (신호 시)
+      const card = document.getElementById(`sc_${i}`);
+      if (card) {
+        card.className = 'sym-card' +
+          (s.action==='buy' ? ' entry-signal-buy' : s.action==='sell' ? ' entry-signal-sell' : '') +
+          (card.classList.contains('expanded') ? ' expanded' : '');
       }
-      // 위성 포지션 체크
-      if (s.satellite_position && s.satellite_position.side) {
-        satActivePosCount++;
-        const sp = s.satellite_position;
-        const spColorCls = sp.side === 'long' ? 'pos-chip-long' : 'pos-chip-short';
-        const spPnlSign = sp.unrealized_pnl >= 0 ? '+' : '';
-        satChipsHTML += `<div class="pos-chip ${spColorCls}" style="border-color:rgba(251,113,133,0.4);"><span>🔴 ${s.symbol.split('/')[0]}</span><span>${sp.side.toUpperCase()} ×${sp.leverage}</span><span>${spPnlSign}$${sp.unrealized_pnl}</span></div>`;
-      }
-    });
 
-    summaryGrid.innerHTML = chipsHTML || '<div class="pos-chip" style="color:#64748b">No core positions</div>';
-    satSummaryGrid.innerHTML = satChipsHTML || '<div class="pos-chip" style="color:#64748b">No satellite positions</div>';
-    document.getElementById('corePosCount').textContent = `🔵 Core ${activePosCount}`;
-    document.getElementById('satPosCount').textContent = `🔴 Satellite ${satActivePosCount}`;
+      // 코어 레이어
+      const clEl = document.getElementById(`cl_${i}`);
+      if (clEl) clEl.innerHTML = layerHTML(s.reasons || [], LAYERS_CORE);
 
-    document.getElementById('totalScans').textContent = scanSum;
-    document.getElementById('lastScanTime').textContent = utcToKST(new Date(latestTs).toISOString());
-    document.getElementById('currentScanSym').textContent = latestSym;
-
-    // ── 전역 OI/FGI 통계 ──
-    const btcSym = d.symbols.find(s => s.symbol === 'BTC/USDT');
-    if (btcSym) {
-      const whaleGod = btcSym.god_tier?.whale;
-      const oiInfo   = whaleGod?.oi_info || {};
-      const oiTrend  = oiInfo.oi_trend || 'neutral';
-      const oiChg    = oiInfo.oi_change_pct;
-      const lsRatio  = oiInfo.ls_ratio;
-
-      const oiEl = document.getElementById('oiStat');
-      if (oiEl) {
-        if (oiChg !== undefined) {
-          const oiCls = oiTrend === 'rising' ? '#34d399' : (oiTrend === 'falling' ? '#f87171' : '#94a3b8');
-          const oiIcon = oiTrend === 'rising' ? '📈' : (oiTrend === 'falling' ? '📉' : '➡️');
-          oiEl.textContent = `${oiIcon} ${oiChg >= 0 ? '+' : ''}${Number(oiChg).toFixed(1)}%`;
-          oiEl.style.color = oiCls;
+      // 코어 신호 뱃지
+      const csbEl = document.getElementById(`csb_${i}`);
+      if (csbEl) {
+        if (s.action === 'buy') {
+          const rp = s.risk_pct ? (s.risk_pct*100).toFixed(0)+'%' : '';
+          csbEl.className = 'signal-badge sb-buy';
+          csbEl.textContent = `🚀 CORE BUY ENTRY ${rp}`;
+        } else if (s.action === 'sell') {
+          const rp = s.risk_pct ? (s.risk_pct*100).toFixed(0)+'%' : '';
+          csbEl.className = 'signal-badge sb-sell';
+          csbEl.textContent = `🚀 CORE SELL ENTRY ${rp}`;
         } else {
-          oiEl.textContent = '-- (Live)';
-          oiEl.style.color = '#64748b';
+          const lastReason = (s.reasons || []).filter(r => isBlock(r)).pop() || '';
+          const short = lastReason.replace(/^[^\w가-힣a-zA-Z$0-9]*/, '').slice(0, 30);
+          csbEl.className = 'signal-badge sb-wait';
+          csbEl.textContent = short || '진입 자리 탐색 중...';
         }
       }
 
-      // Fear & Greed
-      const fgiEl = document.getElementById('fgiStat');
-      if (fgiEl && btcSym.fear_greed !== undefined) {
-        const fg = btcSym.fear_greed;
-        const fgCls = fg <= 25 ? '#f87171' : (fg >= 75 ? '#34d399' : '#fbbf24');
-        fgiEl.textContent = fg;
-        fgiEl.style.color = fgCls;
+      // OI/LS 칩
+      const oiEl = document.getElementById(`oi_${i}`);
+      if (oiEl) {
+        const oi = s.god_tier?.whale?.oi_info || {};
+        let html = '';
+        if (oi.oi_change_pct !== undefined) {
+          const cls = oi.oi_trend==='rising'?'oi-r':oi.oi_trend==='falling'?'oi-f':'oi-n';
+          const ico = oi.oi_trend==='rising'?'📈':oi.oi_trend==='falling'?'📉':'➡️';
+          html += `<span class="oi-chip ${cls}">${ico} OI ${Number(oi.oi_change_pct)>=0?'+':''}${Number(oi.oi_change_pct).toFixed(1)}%</span>`;
+        }
+        if (oi.ls_ratio !== undefined) {
+          const lsCls = oi.ls_bias==='long_heavy'?'ls-long':oi.ls_bias==='short_heavy'?'ls-short':'';
+          const lsIco = oi.ls_bias==='long_heavy'?'🟢':oi.ls_bias==='short_heavy'?'🔴':'⚪';
+          html += `<span class="oi-chip oi-n">${lsIco} L/S <span class="${lsCls}">${Number(oi.ls_ratio).toFixed(2)}</span></span>`;
+        }
+        oiEl.innerHTML = html;
       }
-    }
 
-    // ── 심볼별 OI 패널 업데이트 ──
-    d.symbols.forEach((s, i) => {
-      const oiPanelEl = document.getElementById(`oi_${i}`);
-      if (!oiPanelEl) return;
-      const whaleGod = s.god_tier?.whale;
-      const oiInfo   = whaleGod?.oi_info || {};
-      const oiTrend  = oiInfo.oi_trend;
-      const oiChg    = oiInfo.oi_change_pct;
-      const lsRatio  = oiInfo.ls_ratio;
-      const lsBias   = oiInfo.ls_bias;
+      // 위성 레이어
+      const slEl = document.getElementById(`sl_${i}`);
+      if (slEl) slEl.innerHTML = layerHTML(s.satellite_reasons || [], LAYERS_SAT);
 
-      let oiHtml = '';
-      if (oiChg !== undefined) {
-        const oiCls = oiTrend === 'rising' ? 'oi-rising' : (oiTrend === 'falling' ? 'oi-falling' : 'oi-neutral');
-        const oiIcon = oiTrend === 'rising' ? '📈' : (oiTrend === 'falling' ? '📉' : '➡️');
-        oiHtml += `<span class="oi-chip ${oiCls}">${oiIcon} OI ${oiChg >= 0 ? '+' : ''}${Number(oiChg).toFixed(1)}%</span>`;
+      // 위성 신호 뱃지
+      const ssbEl = document.getElementById(`ssb_${i}`);
+      if (ssbEl) {
+        if (s.satellite_action === 'buy') {
+          ssbEl.className = 'signal-badge sb-buy';
+          ssbEl.textContent = '🚀 SAT BUY ENTRY';
+        } else if (s.satellite_action === 'sell') {
+          ssbEl.className = 'signal-badge sb-sell';
+          ssbEl.textContent = '🚀 SAT SELL ENTRY';
+        } else {
+          const lastSatReason = (s.satellite_reasons || []).filter(r => isBlock(r)).pop() || '';
+          const short = lastSatReason.replace(/^[^\w가-힣a-zA-Z$0-9]*/, '').slice(0, 28);
+          ssbEl.className = 'signal-badge sb-wait';
+          ssbEl.style.borderColor = 'rgba(244,114,182,.15)';
+          ssbEl.textContent = short || '대기 중...';
+        }
       }
-      if (lsRatio !== undefined) {
-        const lsCls = lsBias === 'long_heavy' ? 'oi-long-heavy' : (lsBias === 'short_heavy' ? 'oi-short-heavy' : '');
-        const lsIcon = lsBias === 'long_heavy' ? '🟢' : (lsBias === 'short_heavy' ? '🔴' : '⚪');
-        oiHtml += `<span class="oi-chip oi-neutral" style="border-color:rgba(99,102,241,0.3);">${lsIcon} L/S <span class="${lsCls}">${Number(lsRatio).toFixed(2)}</span></span>`;
+
+      // 상세 reasons
+      const drEl = document.getElementById(`dr_${i}`);
+      if (drEl) drEl.innerHTML = (s.reasons||[]).map(r=>`<div class="reason-item">${r}</div>`).join('');
+
+      // 포지션 집계
+      if (s.position?.side) {
+        corePosN++;
+        const p = s.position;
+        const pnl = Number(p.unrealized_pnl||0);
+        posItems.push(`
+          <div class="pos-card pos-${p.side}">
+            <span class="pos-tag pos-tag-core">코어</span>
+            <span class="pos-sym">${s.symbol.split('/')[0]}</span>
+            <span class="pos-side-${p.side}">${p.side.toUpperCase()}</span>
+            <span class="pos-lev">×${p.leverage}</span>
+            <span class="pos-pnl ${pnl>=0?'pos-pnl-pos':'pos-pnl-neg'}">${pnl>=0?'+':''}$${Math.abs(pnl).toFixed(2)}</span>
+          </div>`);
       }
-      oiPanelEl.innerHTML = oiHtml;
+      if (s.satellite_position?.side) {
+        satPosN++;
+        const sp = s.satellite_position;
+        const spnl = Number(sp.unrealized_pnl||0);
+        posItems.push(`
+          <div class="pos-card pos-${sp.side}">
+            <span class="pos-tag pos-tag-sat">위성</span>
+            <span class="pos-sym">${s.symbol.split('/')[0]}</span>
+            <span class="pos-side-${sp.side}">${sp.side.toUpperCase()}</span>
+            <span class="pos-lev">×${sp.leverage}</span>
+            <span class="pos-pnl ${spnl>=0?'pos-pnl-pos':'pos-pnl-neg'}">${spnl>=0?'+':''}$${Math.abs(spnl).toFixed(2)}</span>
+          </div>`);
+      }
     });
 
-    if(d.trade_log && d.trade_log.length > 0) {
-      let logH = '<table><tr><th>Time</th><th>Target</th><th>Side</th><th>Size</th></tr>';
-      [...d.trade_log].reverse().slice(0,10).forEach(L => { 
-        logH += `<tr><td style="color:#64748b">${L.time}</td><td class="sym-tag">${L.symbol}</td><td class="${L.side.toLowerCase()==='buy'?'buy-tag':'sell-tag'}">${L.side.toUpperCase()}</td><td>$${L.qty}</td></tr>`; 
+    // 포지션 패널 렌더
+    document.getElementById('corePosN').textContent = corePosN;
+    document.getElementById('satPosN').textContent  = satPosN;
+    document.getElementById('posTotal').textContent = (corePosN + satPosN) + '개';
+    const posListEl = document.getElementById('posList');
+    posListEl.innerHTML = posItems.length
+      ? posItems.join('')
+      : '<div class="pos-empty">포지션 없음 — 진입 자리 탐색 중</div>';
+
+    // 거래 로그
+    if (d.trade_log?.length) {
+      let html = '<table><tr><th>Time</th><th>계정</th><th>Symbol</th><th>Side</th><th>Size</th></tr>';
+      [...d.trade_log].reverse().forEach(l => {
+        const acTag = l.account === 'satellite'
+          ? '<span class="t-sat">위성</span>'
+          : '<span class="t-core">코어</span>';
+        html += `<tr>
+          <td style="color:var(--muted)">${l.time}</td>
+          <td>${acTag}</td>
+          <td class="t-sym">${l.symbol}</td>
+          <td class="${l.side?.toLowerCase()==='buy'?'t-buy':'t-sell'}">${(l.side||'').toUpperCase()}</td>
+          <td>$${l.qty}</td>
+        </tr>`;
       });
-      document.getElementById('tradeLog').innerHTML = logH + '</table>';
+      document.getElementById('tradeLog').innerHTML = html + '</table>';
     }
-    
-    if (d.backtest_status === 'running') {
-       document.getElementById('runBacktestBtn').disabled = true;
-       document.getElementById('runBacktestBtn').textContent = '⚙️ Analyzing..';
-    } else {
-       // 분석 중이 아니면 버튼 상태 복구
-       const btBtn = document.getElementById('runBacktestBtn');
-       if (btBtn.disabled) {
-         btBtn.disabled = false;
-         btBtn.textContent = '🚀 Run Simulation';
-         if (d.backtest_status === 'completed' || d.backtest_status === 'error') {
-            loadBacktestResults(); // 상태 변경 시 자동 로드 시도
-         }
-       }
-    }
-  } catch(e) { console.error('Dashboard Update Error:', e); }
+
+  } catch(e) { console.error('update error:', e); }
 }
 
-setInterval(update, 5000); update();
+// ── 탭 ────────────────────────────────────────────────────────────────
+function showTab(t) {
+  document.getElementById('liveSection').style.display = t==='live' ? '' : 'none';
+  document.getElementById('btSection').style.display   = t==='bt'   ? '' : 'none';
+  document.getElementById('tabLive').className = 'tab' + (t==='live'?' tab-on':'');
+  document.getElementById('tabBT').className   = 'tab' + (t==='bt'  ?' tab-on':'');
+  if (t==='bt') loadBTResults();
+}
+
+// ── 백테스트 ──────────────────────────────────────────────────────────
+async function runBT() {
+  const btn = document.getElementById('btnRun');
+  const sym = document.getElementById('btSym').value;
+  const lim = document.getElementById('btLim').value;
+  btn.disabled = true; btn.textContent = '⏳ 분석 중...';
+  document.getElementById('btLoading').style.display = '';
+  document.getElementById('btResults').style.display = 'none';
+  try {
+    await fetch('/api/backtest/run', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({symbol:sym, limit:parseInt(lim)}) });
+    pollBT();
+  } catch(e) { btn.disabled=false; btn.textContent='🚀 Run Simulation'; }
+}
+async function pollBT() {
+  const r = await fetch('/api/status');
+  const d = await r.json();
+  if (d.backtest_status === 'running') { setTimeout(pollBT, 2500); return; }
+  document.getElementById('btLoading').style.display = 'none';
+  document.getElementById('btnRun').disabled = false;
+  document.getElementById('btnRun').textContent = '🚀 Run Simulation';
+  loadBTResults();
+}
+async function loadBTResults() {
+  const r = await fetch('/api/backtest/results');
+  const d = await r.json();
+  if (d.status === 'no_results') return;
+  const s = d.summary || d;
+  document.getElementById('btResults').style.display = '';
+  const pnl = s.net_profit ?? d.pnl_usdt ?? 0;
+  const roi = s.roi ?? d.roi_pct ?? 0;
+  const wr  = s.win_rate ?? d.win_rate_pct ?? 0;
+  const mdd = s.max_drawdown ?? d.mdd_pct ?? 0;
+  document.getElementById('btPnl').textContent   = (pnl>=0?'+':'') + '$' + Number(pnl).toFixed(2);
+  document.getElementById('btPnl').style.color   = pnl>=0?'var(--green)':'var(--red)';
+  document.getElementById('btRoi').textContent   = (roi>=0?'+':'') + Number(roi).toFixed(2) + '%';
+  document.getElementById('btRoi').style.color   = roi>=0?'var(--green)':'var(--red)';
+  document.getElementById('btMdd').textContent   = Number(mdd).toFixed(2) + '%';
+  document.getElementById('btTotal').textContent = (s.total_trades ?? d.total_trades ?? 0) + '회';
+  document.getElementById('btWins').textContent  = (s.win_trades   ?? d.win_trades   ?? 0) + '회';
+  document.getElementById('btLoss').textContent  = (s.loss_trades  ?? d.loss_trades  ?? 0) + '회';
+  document.getElementById('btWr').textContent    = Number(wr).toFixed(1) + '%';
+  const ctx = document.getElementById('btChart').getContext('2d');
+  if (btChart) btChart.destroy();
+  btChart = new Chart(ctx, {
+    type:'line',
+    data:{ labels: d.equity_curve.map((_,i)=>i), datasets:[{ data:d.equity_curve, borderColor:'#818cf8', borderWidth:2.5, fill:true, backgroundColor:'rgba(129,140,248,0.08)', tension:.4, pointRadius:0 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{display:false}, y:{ticks:{color:'#64748b'}, grid:{color:'rgba(255,255,255,0.04)'}} } }
+  });
+  let html = '<table><tr><th>Time</th><th>Side</th><th>Entry</th><th>Exit</th><th>PnL</th></tr>';
+  [...(d.trades||[])].reverse().forEach(t => {
+    const c = t.result==='profit'?'var(--green)':t.result==='forced_exit'?'var(--yellow)':'var(--red)';
+    html += `<tr><td style="color:var(--muted)">${t.entry_time}</td><td class="${t.side==='buy'?'t-buy':'t-sell'}">${t.side.toUpperCase()}</td><td>$${Number(t.entry_price).toLocaleString()}</td><td>${t.exit_price?'$'+Number(t.exit_price).toLocaleString():'-'}</td><td style="color:${c};font-weight:800;">${typeof t.pnl==='number'?(t.pnl>=0?'+':'')+t.pnl.toFixed(2):'-'}</td></tr>`;
+  });
+  document.getElementById('btLog').innerHTML = html + '</table>';
+}
+
+setInterval(update, 5000);
+update();
 </script>
 </body>
 </html>

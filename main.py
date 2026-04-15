@@ -87,6 +87,7 @@ class IreneAgent:
                 'scan_count': 0,
                 'last_scan': None,
                 'last_signal': None,
+                'last_satellite_signal': None,
                 'price': 0.0,
                 'prev_price': 0.0
             } for sym in self.symbols
@@ -393,6 +394,7 @@ class IreneAgent:
                     # 대시보드용 상태 저장
                     self.symbol_status[symbol]['last_scan'] = time.strftime('%Y-%m-%d %H:%M:%S')
                     self.symbol_status[symbol]['last_signal'] = core_signal
+                    self.symbol_status[symbol]['last_satellite_signal'] = satellite_signal
                     self.symbol_status[symbol]['scan_count'] += 1
 
                     # 코어 분석 결과 출력

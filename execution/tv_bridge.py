@@ -74,6 +74,7 @@ class TVBridge:
                 prev_price = sym_status.get('prev_price', 0)
                 pos = open_positions.get(sym, None)
 
+                sat_signal = sym_status.get('last_satellite_signal') or {}
                 sat_pos = satellite_positions.get(sym, None)
                 symbols_data.append({
                     'symbol': sym,
@@ -83,13 +84,18 @@ class TVBridge:
                     'action': signal.get('action', 'hold'),
                     'side': signal.get('side'),
                     'reasons': signal.get('reasons', []),
+                    'risk_pct': signal.get('risk_pct', 0.01),
                     'scores': signal.get('scores', {}),
-                    'god_tier': signal.get('god_tier', {}),     # ✨ OI/LS 실시간 데이터
+                    'god_tier': signal.get('god_tier', {}),
                     'fear_greed': signal.get('god_tier', {}).get('crowd', {}).get('details', {}).get('fear_greed'),
                     'scan_count': sym_status.get('scan_count', 0),
                     'last_scan': sym_status.get('last_scan', '-'),
                     'position': pos,
                     'satellite_position': sat_pos,
+                    'satellite_action': sat_signal.get('action', 'hold'),
+                    'satellite_side': sat_signal.get('side'),
+                    'satellite_reasons': sat_signal.get('reasons', []),
+                    'satellite_confluence': sat_signal.get('confluence', 0),
                 })
 
             return jsonify({
