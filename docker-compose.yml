@@ -8,9 +8,9 @@ services:
       dockerfile: Dockerfile
     image: irene-trading-agent:latest
     container_name: irene_agent
-    # 빌드 오류 우회를 위해 시작 시 의존성 설치 루틴 추가
+    # 빌드 오류 우회를 위해 시작 시 모든 의존성 설치
     command: >
-      sh -c "pip install --no-cache-dir python-telegram-bot && python3 -u main.py"
+      sh -c "pip install --no-cache-dir -r requirements.txt && python3 -u main.py"
 
     # ── 재시작 정책 (NAS 재부팅 후 자동 복구) ──────
     restart: unless-stopped
