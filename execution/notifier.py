@@ -67,7 +67,7 @@ class TelegramBot:
         
         try:
             # TVBridge가 관리하는 assistant 인스턴스 사용
-            assistant = self.agent.tv_bridge.assistant
+            assistant = self.agent.bridge.assistant
             result = assistant.chat(
                 session_id=f"tg_{self.chat_id}",
                 user_text=user_text,
@@ -94,7 +94,7 @@ class TelegramBot:
             
             user_text = update.message.caption or "이 차트 분석해줘"
             
-            assistant = self.agent.tv_bridge.assistant
+            assistant = self.agent.bridge.assistant
             result = assistant.chat(
                 session_id=f"tg_{self.chat_id}",
                 user_text=user_text,
