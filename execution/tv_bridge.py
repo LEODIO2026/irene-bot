@@ -119,7 +119,8 @@ class TVBridge:
                 'min_confluence': self.agent.decision_maker.min_confluence,
                 'max_score': self.agent.decision_maker.max_score,
                 'server_time': _time.strftime('%Y-%m-%d %H:%M:%S'),
-                'backtest_status': self.backtest_status
+                'backtest_status': self.backtest_status,
+                'pending_proposals': self.agent.status.get('pending_proposals', {})
             })
 
         @self.app.route('/dashboard', methods=['GET'])
@@ -134,24 +135,28 @@ class TVBridge:
 
         @self.app.route('/api/trade-chat', methods=['POST'])
         def trade_chat():
-            """Claude와 대화 — 텍스트 + 선택적 차트 이미지"""
+            """Claude와 대화 — 텍스트 + 선택적 차트 이미지 (최대 5장)"""
             data = request.get_json(silent=True) or {}
-            session_id  = data.get('session_id', 'default')
-            user_text   = data.get('message', '').strip()
-            symbol      = data.get('symbol', 'BTC/USDT')
-            image_b64   = data.get('image_b64')   # base64 string (no data:... prefix)
-            image_mime  = data.get('image_mime', 'image/png')
-            model       = data.get('model', 'claude')  # 'claude' | 'gemini'
+            session_id = data.get('session_id', 'default')
+            user_text  = data.get('message', '').strip()
+            symbol     = data.get('symbol', 'BTC/USDT')
+            model      = data.get('model', 'claude-sonnet-4-6')
 
-            if not user_text and not image_b64:
+            # 멀티 이미지: images=[{b64,mime},...] 또는 하위호환 단일 image_b64
+            images = data.get('images') or []
+            if not images and data.get('image_b64'):
+                images = [{'b64': data['image_b64'],
+                           'mime': data.get('image_mime', 'image/png')}]
+            images = images[:5]  # 최대 5장 강제
+
+            if not user_text and not images:
                 return jsonify({'error': '메시지 또는 이미지가 필요합니다.'}), 400
 
             try:
                 result = self.assistant.chat(
                     session_id=session_id,
                     user_text=user_text,
-                    image_b64=image_b64,
-                    image_mime=image_mime,
+                    images=images,
                     symbol=symbol,
                     model=model,
                 )
@@ -214,6 +219,24 @@ class TVBridge:
             if self._assistant:
                 self._assistant.clear_session(session_id)
             return jsonify({'status': 'ok'}), 200
+
+        @self.app.route('/api/chat-logs', methods=['GET'])
+        def chat_logs_list():
+            """저장된 채팅 로그 목록"""
+            return jsonify(self.assistant.list_chat_logs()), 200
+
+        @self.app.route('/api/chat-logs/<session_id>', methods=['GET'])
+        def chat_log_detail(session_id):
+            """특정 세션 채팅 로그 상세"""
+            log = self.assistant.get_chat_log(session_id)
+            if not log:
+                return jsonify({'error': '로그 없음'}), 404
+            return jsonify(log), 200
+
+        @self.app.route('/chat-logs', methods=['GET'])
+        def chat_logs_page():
+            """채팅 로그 열람 페이지"""
+            return render_template('chat_logs.html')
 
         @self.app.route('/api/trade-position', methods=['GET'])
         def trade_position():
@@ -333,10 +356,13 @@ class TVBridge:
             if df is None or df.empty: return
             current_price = df.iloc[-1]['close']
 
-            if sl is None or tp is None:
-                auto_sl, auto_tp = self.agent.ict_engine.calculate_sl_tp(df, side)
-                sl = sl or auto_sl
-                tp = tp or auto_tp
+            if sl is None:
+                auto_sl, _ = self.agent.ict_engine.calculate_sl_tp(df, side)
+                sl = auto_sl
+
+            # TP는 항상 SL 기준 1:3 고정
+            risk = abs(current_price - sl)
+            tp = round(current_price + risk * 3, 4) if side == 'buy' else round(current_price - risk * 3, 4)
 
             balance = self.agent.fetcher.fetch_balance('USDT')
             if not balance: return
@@ -370,10 +396,13 @@ class TVBridge:
             if df is None or df.empty: return
             current_price = df.iloc[-1]['close']
 
-            if sl is None or tp is None:
-                auto_sl, auto_tp = self.agent.ict_engine.calculate_sl_tp(df, side)
-                sl = sl or auto_sl
-                tp = tp or auto_tp
+            if sl is None:
+                auto_sl, _ = self.agent.ict_engine.calculate_sl_tp(df, side)
+                sl = auto_sl
+
+            # TP는 항상 SL 기준 1:3 고정
+            risk = abs(current_price - sl)
+            tp = round(current_price + risk * 3, 4) if side == 'buy' else round(current_price - risk * 3, 4)
 
             balance = self.agent.satellite_fetcher.fetch_balance('USDT')
             if not balance: return

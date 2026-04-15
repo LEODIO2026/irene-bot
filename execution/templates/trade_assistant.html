@@ -728,7 +728,33 @@ function selectSymbol(btn) {
   btn.classList.add('active');
   selectedSymbol = btn.dataset.sym;
   document.getElementById('selectedSymbolLabel').textContent = selectedSymbol;
+  
+  // 제안된 데이터가 있는지 확인
+  checkPendingProposal(selectedSymbol);
+  
   refreshPosition();
+}
+
+function checkPendingProposal(symbol) {
+  fetch('/api/status')
+    .then(r => r.json())
+    .then(data => {
+      const proposals = data.pending_proposals || {};
+      const prop = proposals[symbol];
+      if (prop) {
+        // 제안된 정보가 있으면 UI에 주입
+        showToast(`아이린의 ${symbol} 제안을 불러왔어요!`, 'success');
+        selectSide(prop.side);
+        document.getElementById('slInput').value = prop.sl;
+        document.getElementById('tpInput').value = prop.tp;
+        
+        // 채팅창에도 안내 메시지 추가 (중복 방지용 체크 필요할 수 있음)
+        const note = document.getElementById('suggestionNote');
+        if (note) note.textContent = `아이린의 추천 타점 (시간: ${prop.time_str})`;
+        
+        updateRR();
+      }
+    });
 }
 
 // ── 방향 선택 ────────────────────────────────────────────

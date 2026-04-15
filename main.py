@@ -10,6 +10,7 @@ from execution.executor import Executor
 from execution.tv_bridge import TVBridge
 from strategy.satellite import SatelliteStrategy
 from strategy.barbell_manager import BarbellManager
+from execution.notifier import TelegramNotifier
 
 load_dotenv()
 
@@ -20,8 +21,12 @@ class IreneAgent:
         self.symbols = [s.strip() for s in symbols_str.split(',') if s.strip()]
         self.use_testnet = os.getenv('USE_TESTNET', 'True') == 'True'
         self.trading_paused = os.getenv('TRADING_PAUSED', 'False') == 'True'  # 🛑 매매 일시 중단 플래그
+        self.trading_mode = os.getenv('TRADING_MODE', 'autonomous')          # 'autonomous' | 'semi-auto'
+        
         if self.trading_paused:
             print("⛔ 아이린: TRADING_PAUSED=True → 분석만 수행, 실제 주문은 차단됩니다.")
+        
+        print(f"⚙️  아이린: 현재 모드 = {self.trading_mode.upper()}")
         
         # ── 코어 (메인계정) ──
         self.fetcher      = DataFetcher(use_testnet=self.use_testnet, label='코어')
@@ -80,8 +85,12 @@ class IreneAgent:
         self._trade_log_path = os.path.join(os.path.dirname(__file__), 'data', 'trade_log.json')
         self.status = {
             'trade_log': self._load_trade_log(),
-            'started_at': time.strftime('%Y-%m-%d %H:%M:%S')
+            'started_at': time.strftime('%Y-%m-%d %H:%M:%S'),
+            'pending_proposals': {}  # symbol -> signal
         }
+        
+        # 텔레그램 알림
+        self.notifier = TelegramNotifier()
         # 개별 코인용 상태
         self.symbol_status = {
             sym: {
@@ -464,10 +473,16 @@ class IreneAgent:
                         if self.trading_paused:
                             print(f"⛔ [{symbol}] TRADING_PAUSED → 코어 신호 차단")
                         elif df_entry is not None:
-                            self.execute_autonomous_trade(core_signal, df_entry, symbol)
+                            if self.trading_mode == 'semi-auto':
+                                self.propose_trade(core_signal, df_entry, symbol)
+                            else:
+                                self.execute_autonomous_trade(core_signal, df_entry, symbol)
 
                     elif has_core_position:
                         print(f"아이린: {symbol} 코어 포지션 보유 중 → 신규 진입 보류")
+                        # 포지션 보유 중이면 대기 중인 제안 삭제
+                        if symbol in self.status['pending_proposals']:
+                            del self.status['pending_proposals'][symbol]
 
                     # ── 5. 위성 진입 (코어와 독립 — 별도 자본) ──
                     if (symbol not in self.satellite_positions
@@ -485,6 +500,41 @@ class IreneAgent:
 
             # 전체 종목 1사이클 후 대기
             time.sleep(40)
+
+    def propose_trade(self, signal, df_entry, symbol):
+        """거래 제안을 생성하고 텔레그램으로 알림을 보냅니다."""
+        # 이미 10분 이내에 제안한 적이 있는지 체크 (중복 알림 방지)
+        existing = self.status['pending_proposals'].get(symbol)
+        if existing and (time.time() - existing.get('ts', 0)) < 600:
+            return
+
+        current_price = float(df_entry.iloc[-1]['close'])
+        sl, tp = self.ict_engine.calculate_sl_tp(df_entry, signal['action'])
+        
+        # 제안 정보 저장
+        proposal = {
+            'symbol': symbol,
+            'side': signal['action'],
+            'price': current_price,
+            'sl': sl,
+            'tp': tp,
+            'reasons': signal['reasons'],
+            'ts': time.time(),
+            'time_str': time.strftime('%H:%M:%S')
+        }
+        self.status['pending_proposals'][symbol] = proposal
+        
+        print(f"🔔 [반자동] {symbol} 거래 제안 생성! 텔레그램 알림 발송 중...")
+        
+        # 텔레그램 발송
+        self.notifier.send_trade_proposal(
+            symbol=symbol,
+            side=signal['action'],
+            price=current_price,
+            sl=sl,
+            tp=tp,
+            reasons=signal['reasons']
+        )
 
     def _pnl_monitor_loop(self):
         """

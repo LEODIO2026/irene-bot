@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>아이린 — 채팅 로그</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d2e; --surface2: #232639;
+    --border: #2e3148; --accent: #818cf8; --accent2: #a78bfa;
+    --buy: #34d399; --sell: #f87171; --text: #e2e8f0; --muted: #8892a4;
+    --gold: #fbbf24;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter','Noto Sans KR',sans-serif; font-size: 14px; min-height: 100vh; }
+
+  header {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 12px 24px; display: flex; align-items: center; gap: 16px;
+  }
+  header a { color: var(--muted); text-decoration: none; font-size: 12px; transition: color .2s; }
+  header a:hover { color: var(--text); }
+  .header-title { font-size: 16px; font-weight: 700; color: var(--accent2); flex: 1; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px; display: flex; gap: 20px; }
+
+  /* 목록 패널 */
+  .log-list { width: 320px; flex-shrink: 0; }
+  .log-list h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 12px; }
+  .log-item {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 8px; cursor: pointer; transition: border-color .2s;
+  }
+  .log-item:hover, .log-item.active { border-color: var(--accent); }
+  .log-item .log-date { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .log-item .log-sym { font-weight: 700; font-size: 13px; color: var(--accent); }
+  .log-item .log-meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .no-logs { color: var(--muted); font-size: 13px; text-align: center; padding: 40px 0; }
+
+  /* 상세 패널 */
+  .log-detail { flex: 1; min-width: 0; }
+  .log-detail h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 12px; }
+  .detail-header {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .detail-header .info { font-size: 13px; }
+  .detail-header .info strong { color: var(--accent); }
+
+  .export-btn {
+    background: var(--accent); border: none; color: #fff; padding: 7px 14px;
+    border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; transition: opacity .2s;
+  }
+  .export-btn:hover { opacity: .85; }
+
+  .messages { display: flex; flex-direction: column; gap: 12px; }
+  .msg { display: flex; gap: 10px; max-width: 90%; }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .msg.assistant { align-self: flex-start; }
+  .avatar {
+    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;
+  }
+  .msg.user .avatar { background: rgba(129,140,248,.2); color: var(--accent); }
+  .msg.assistant .avatar { background: rgba(167,139,250,.2); color: var(--accent2); }
+  .bubble {
+    padding: 10px 14px; border-radius: 14px; line-height: 1.7;
+    white-space: pre-wrap; word-break: break-word; font-size: 13px;
+  }
+  .msg.user .bubble { background: rgba(129,140,248,.12); border: 1px solid rgba(129,140,248,.2); border-bottom-right-radius: 4px; }
+  .msg.assistant .bubble { background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .bubble strong { color: var(--gold); }
+  .msg-ts { font-size: 10px; color: var(--muted); align-self: flex-end; padding-bottom: 2px; flex-shrink: 0; }
+
+  .empty-detail { color: var(--muted); text-align: center; padding: 60px 0; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/trade-assistant">← 트레이드 어시스턴트</a>
+  <div class="header-title">채팅 로그</div>
+</header>
+
+<div class="container">
+  <div class="log-list">
+    <h3>저장된 대화</h3>
+    <div id="logList"><div class="no-logs">불러오는 중...</div></div>
+  </div>
+  <div class="log-detail">
+    <h3>대화 내용</h3>
+    <div id="logDetail"><div class="empty-detail">왼쪽에서 대화를 선택해 주세요.</div></div>
+  </div>
+</div>
+
+<script>
+let currentLog = null;
+
+async function loadList() {
+  const res = await fetch('/api/chat-logs');
+  const list = await res.json();
+  const el = document.getElementById('logList');
+  if (!list.length) {
+    el.innerHTML = '<div class="no-logs">저장된 대화가 없어요.</div>';
+    return;
+  }
+  el.innerHTML = list.map(l => `
+    <div class="log-item" onclick="loadDetail('${l.session_id}', this)">
+      <div class="log-date">${l.started_at}</div>
+      <div class="log-sym">${l.symbol || '—'}</div>
+      <div class="log-meta">${l.model || '—'} · ${Math.floor(l.message_count/2)}턴</div>
+    </div>
+  `).join('');
+}
+
+async function loadDetail(sessionId, el) {
+  document.querySelectorAll('.log-item').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+
+  const res = await fetch(`/api/chat-logs/${sessionId}`);
+  const log = await res.json();
+  currentLog = log;
+
+  const msgs = (log.messages || []).filter(m => m.role !== 'system');
+  const detail = document.getElementById('logDetail');
+
+  detail.innerHTML = `
+    <div class="detail-header">
+      <div class="info">
+        <strong>${log.symbol || '—'}</strong> · ${log.model || '—'} · ${log.started_at || '—'}
+        · ${Math.floor(msgs.length/2)}턴
+      </div>
+      <button class="export-btn" onclick="exportTxt()">📄 TXT 저장</button>
+    </div>
+    <div class="messages" id="msgList">
+      ${msgs.map(m => `
+        <div class="msg ${m.role}">
+          <div class="avatar">${m.role === 'user' ? '나' : '아'}</div>
+          <div class="bubble">${formatText(m.text || '')}${m.images > 0 ? `\n<span style="font-size:11px;color:var(--muted)">📷 이미지 ${m.images}장 첨부</span>` : ''}</div>
+          <div class="msg-ts">${m.ts || ''}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function formatText(text) {
+  let s = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  s = s.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  return s;
+}
+
+function exportTxt() {
+  if (!currentLog) return;
+  const msgs = (currentLog.messages || []).filter(m => m.role !== 'system');
+  const lines = [`[아이린 채팅 로그]`, `심볼: ${currentLog.symbol}`, `모델: ${currentLog.model}`, `일시: ${currentLog.started_at}`, `${'='.repeat(50)}`];
+  msgs.forEach(m => {
+    lines.push(`\n[${m.ts}] ${m.role === 'user' ? '나' : '아이린'}`);
+    lines.push(m.text || '');
+    if (m.images > 0) lines.push(`📷 이미지 ${m.images}장`);
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `아이린_${currentLog.symbol}_${currentLog.started_at.slice(0,10)}.txt`;
+  a.click();
+}
+
+loadList();
+</script>
+</body>
+</html>
