@@ -208,8 +208,12 @@ class TVBridge:
             sl = data.get('sl')
             tp = data.get('tp')
             
-            threading.Thread(target=self.execute_signal, args=(side, symbol, sl, tp)).start()
-            return jsonify({"status": "success"}), 200
+            account = data.get('account', 'core')  # 'core' | 'satellite'
+            if account == 'satellite':
+                threading.Thread(target=self.execute_satellite_signal, args=(side, symbol, sl, tp)).start()
+            else:
+                threading.Thread(target=self.execute_signal, args=(side, symbol, sl, tp)).start()
+            return jsonify({"status": "success", "account": account}), 200
 
     def execute_signal(self, side, symbol, sl=None, tp=None):
         try:
@@ -247,6 +251,44 @@ class TVBridge:
                 })
         except Exception as e:
             print(f"아이린: 웹후크 처리 오류: {e}")
+
+    def execute_satellite_signal(self, side, symbol, sl=None, tp=None):
+        try:
+            df = self.agent.satellite_fetcher.fetch_ohlcv(symbol, timeframe='1h', limit=100)
+            if df is None or df.empty: return
+            current_price = df.iloc[-1]['close']
+
+            if sl is None or tp is None:
+                auto_sl, auto_tp = self.agent.ict_engine.calculate_sl_tp(df, side)
+                sl = sl or auto_sl
+                tp = tp or auto_tp
+
+            balance = self.agent.satellite_fetcher.fetch_balance('USDT')
+            if not balance: return
+
+            risk_report = self.agent.risk_manager.calculate_position_size(balance, current_price, sl)
+            qty = risk_report['position_qty']
+            lev = max(2, int(risk_report['required_leverage']) + 1)
+
+            order = self.agent.satellite_executor.place_order(symbol, side, qty, lev, stop_loss=sl, take_profit=tp)
+            if order:
+                import time as _t
+                self.agent.status['trade_log'].append({
+                    'time':        _t.strftime('%m/%d %H:%M'),
+                    'ts':          int(_t.time() * 1000),
+                    'symbol':      symbol,
+                    'side':        side.upper(),
+                    'qty':         f'{qty:.6f}',
+                    'entry_price': round(float(current_price), 4),
+                    'sl':          sl,
+                    'tp':          tp,
+                    'account':     'satellite',
+                    'pnl':         None,
+                    'exit_price':  None,
+                })
+                print(f"아이린[위성]: {symbol} {side.upper()} 웹훅 진입 성공.")
+        except Exception as e:
+            print(f"아이린[위성]: 웹훅 처리 오류: {e}")
 
     def run(self, host='0.0.0.0', port=5000):
         self.app.run(host=host, port=port)
