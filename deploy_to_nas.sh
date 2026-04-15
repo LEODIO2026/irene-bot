@@ -20,9 +20,9 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# 2. NAS에서 git pull + Docker 재시작
+# 2. NAS에서 git pull + Docker 설정 갱신 및 재시작
 echo "📡 NAS 배포 중..."
-ssh $NAS_USER@$NAS_IP "cd $NAS_PATH && git pull origin main && $DOCKER restart irene_agent"
+ssh $NAS_USER@$NAS_IP "cd $NAS_PATH && git pull origin main && /usr/local/bin/docker-compose up -d"
 
 # 3. 로그 확인
 echo ""
