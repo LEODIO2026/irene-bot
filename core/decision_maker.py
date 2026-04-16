@@ -54,35 +54,27 @@ class DecisionMaker:
 
     def determine_htf_bias(self, df_htf):
         """
-        상위 타임프레임(4H/1D)의 추세 방향을 판단합니다. (v3.1 강화)
-        - EMA20 > EMA50: bullish (EMA 상승 크로스)
-        - EMA20 < EMA50: bearish (EMA 하락 크로스)
-        - EMA20/50 차이가 0.3% 미만 (토토한 황보): neutral → 진입 차단
+        상위 타임프레임(4H/1D)의 추세 방향을 순수 ICT 관점(시장 구조)으로 판단합니다.
+        후행성 보조지표(EMA 등)를 배제하고 피벗 고점/저점 기반의 BOS/MSS 및 통제권(HH/HL)을 확인합니다.
         """
         if df_htf is None or len(df_htf) < 30:
             return 'neutral'
 
-        # 미리 계산된 EMA50이 있으면 재사용
-        if 'ema50' in df_htf.columns:
-            ema50 = df_htf.iloc[-1]['ema50']
-        else:
-            df_htf = df_htf.copy()
-            df_htf['ema50'] = df_htf['close'].ewm(span=50, adjust=False).mean()
-            ema50 = df_htf.iloc[-1]['ema50']
-
-        # EMA20 계산
-        ema20 = df_htf['close'].ewm(span=20, adjust=False).mean().iloc[-1]
+        # 1. 스윙 구조(HH/HL/LH/LL) 우선 확인
+        swing = self.ict_engine.detect_swing_structure(df_htf, swing_window=5, lookback=3)
         
-        # EMA20/50 간 각도 (추세 강도)
-        gap_pct = abs(ema20 - ema50) / ema50 * 100
-
-        if gap_pct < 0.50:
-            return 'neutral'  # EMA20/50 차이 0.5% 미만 = 추세 불명확 → 진입 차단
-
-        if ema20 >= ema50:
-            return 'bullish'
-        else:
-            return 'bearish'
+        # 2. 직전 BOS / MSS 구조 이탈(Break) 확인
+        bos = self.ict_engine.detect_bos_mss(df_htf, swing_window=3)
+        
+        # 구조가 명확하게 확장(HH/HL or LH/LL) 중이라면 스윙 구조를 따름
+        if swing['structure'] != 'sideways':
+            return swing['structure']
+            
+        # 명확한 확장이 진행 중이지 않다면 가장 최근에 돌파/이탈된 주요 방향을 따름
+        if bos['direction'] != 'neutral':
+            return bos['direction']
+            
+        return 'neutral'
 
 
     def analyze_entry(self, data_dict, symbol='BTC/USDT', current_time=None):
@@ -194,6 +186,7 @@ class DecisionMaker:
 
         is_sweep_detected = False
         has_mss = False
+        has_poi = False
         sweep_idx = -1
         mss_idx = -1
         mss_signals = []
@@ -236,32 +229,25 @@ class DecisionMaker:
                 else:
                     result['reasons'].append("⚠️ 스윕 이후 MSS 미감지")
 
-            # 7. POI (필수 조건 3: MSS 이후 생성된 FVG/OB에 현재가 위치)
-            if has_mss:
-                fvgs = self.ict_engine.detect_fvg(df_ltf)
-                current_price = df_ltf.iloc[-1]['close']
-                obs = self.ict_engine.detect_order_blocks(df_ltf, mss_signals)
-
-                has_fvg, has_ob = False, False
-                if side == 'buy':
-                    has_fvg = any(f['bottom']*0.998 <= current_price <= f['top']*1.002
-                                  for f in fvgs if f['type'] == 'bullish' and f['index'] >= mss_idx - 10)
-                    has_ob = any(o['bottom']*0.998 <= current_price <= o['top']*1.002
-                                 for o in obs if o['type'] == 'bullish_OB')
-                else:
-                    has_fvg = any(f['bottom']*0.998 <= current_price <= f['top']*1.002
-                                  for f in fvgs if f['type'] == 'bearish' and f['index'] >= mss_idx - 10)
-                    has_ob = any(o['bottom']*0.998 <= current_price <= o['top']*1.002
-                                 for o in obs if o['type'] == 'bearish_OB')
-
-                if has_fvg or has_ob:
-                    poi_score = 1.5 if (has_fvg and has_ob) else 1.0
-                    result['confluence'] += poi_score
-                    desc = "FVG & OB 동시" if poi_score == 1.5 else ("FVG" if has_fvg else "오더블록")
-                    result['reasons'].append(f"📦 타점 인정: {desc} (+{poi_score})")
-                    result['scores']['poi'] = min(100, poi_score * 100)
-                else:
-                    result['reasons'].append("⚠️ POI 없음 → 타점 미확인")
+            # 7. POI (타점 조건: 진입 방향과 일치하는 FVG/OB에 현재가 위치하는지 단독 확인 - MSS 종속 아님)
+            fvgs = self.ict_engine.detect_fvg(df_ltf)
+            current_price = df_ltf.iloc[-1]['close']
+            
+            has_fvg = False
+            if side == 'buy':
+                has_fvg = any(f['bottom']*0.998 <= current_price <= f['top']*1.002
+                              for f in fvgs if f['type'] == 'bullish' and f['index'] >= len(df_ltf) - 20)
+            else:
+                has_fvg = any(f['bottom']*0.998 <= current_price <= f['top']*1.002
+                              for f in fvgs if f['type'] == 'bearish' and f['index'] >= len(df_ltf) - 20)
+            
+            if has_fvg:
+                has_poi = True
+                result['confluence'] += 1.5
+                result['reasons'].append("🎯 FVG 타점 도달 (+1.5)")
+                result['scores']['poi'] = 100
+            else:
+                result['reasons'].append("⚠️ 현재가 부근 FVG/POI 미감지")
 
         # ── [v4] EQH/EQL: 점수 보너스 제거 → TP/SL 정밀화에만 활용 (메타데이터로만 저장) ──
         if df_ltf is not None and len(df_ltf) >= 20:
@@ -345,15 +331,21 @@ class DecisionMaker:
                 result['god_tier']['news'] = news
             except: result['scores']['news'] = 0
 
-        # ── 최종 판별 (v4) ──
+        # ── 최종 판별 (v4 - ICT 완화 모드) ──
         result.pop('_weak_trend', None)
         effective_min = self.min_confluence
 
-        if result['confluence'] >= effective_min:
+        ict_conditions_met = sum([is_sweep_detected, has_mss, has_poi])
+
+        if not has_poi:
+            result['action'] = 'hold'
+            result['reasons'].append(f"⏸ [ICT 게이트키퍼] FVG 타점 형성이 필요합니다 (스윕/MSS:{ict_conditions_met}개) → 홀드")
+        elif result['confluence'] >= effective_min:
             result['action'] = side
-            result['reasons'].append(f"✅ [v4성공] 컨플루언스 {result['confluence']:.1f}/{self.max_score:.1f} ADX={adx_val:.0f} → {side.upper()}")
+            result['reasons'].append(f"✅ [자율진입] 컨플루언스 {result['confluence']:.1f}/{self.max_score:.1f} ADX={adx_val:.0f} → {side.upper()}")
         else:
-            result['reasons'].append(f"⏸ [v4대기] 조건 미달: {result['confluence']:.1f}/{self.max_score:.1f} (최소 {effective_min:.1f})")
+            result['action'] = 'hold'
+            result['reasons'].append(f"⏸ [점수 미달] 조건 미달: {result['confluence']:.1f}/{self.max_score:.1f} (최소 {effective_min:.1f})")
             
         return result
 

@@ -281,10 +281,12 @@ def simulate_main_v5(df_15m, df_4h, df_1d, ict_engine):
         struct_1d = bos['direction']
         if struct_1d == 'neutral': continue
 
+        # V3 logic: 1D EMA 200 Filter
         ema200 = snap_1d['close'].ewm(span=200, adjust=False).mean().iloc[-1]
         price_now = float(row['close'])
         if price_now < ema200 and struct_1d == 'bullish': continue
 
+        # V3 logic: 4H EMA 20 Momentum
         snap_4h = df_4h.iloc[max(0, h4_idx-49): h4_idx+1]
         if len(snap_4h) < 20: continue
         ema20_4h = snap_4h['close'].ewm(span=20, adjust=False).mean().iloc[-1]
@@ -292,6 +294,7 @@ def simulate_main_v5(df_15m, df_4h, df_1d, ict_engine):
         if mom_4h != struct_1d: continue
 
         side = 'buy' if struct_1d == 'bullish' else 'sell'
+        # ── 2. 15m 타점 (스윕 필수 + FVG) ──
         snap_15m = df_15m.iloc[max(0, i-100): i+1]
         setups = find_sweep_reversal_setups(snap_15m, ict_engine)
 

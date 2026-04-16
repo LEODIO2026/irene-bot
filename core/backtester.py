@@ -20,12 +20,12 @@ class Backtester:
         self.balance = initial_balance
         self.risk_manager = RiskManager(risk_per_trade=risk_per_trade)
         self.ict_engine = ICTEngine()
-        # 전략 튜닝 v4.3: min_confluence 4.0 (4.7은 너무 보수적, 거래 빈도 저조)
+        # 전략 튜닝: min_confluence 3.5 (4.0은 너무 보수적, 거래 빈도 저조)
         self.decision_maker = DecisionMaker(
             self.ict_engine,
-            min_confluence=4.0,
+            min_confluence=3.5,
             enable_ltf_scalp=True,
-            ltf_scalp_min_confluence=3.5,
+            ltf_scalp_min_confluence=3.0,
             scalp_cooldown_minutes=90,
         )
         self.fetcher = DataFetcher()
@@ -389,16 +389,14 @@ class Backtester:
             return current_close > ema20
         else:
             return current_close < ema20
-
-    FIXED_RR = 3.0  # v4.3: 가변 RR → 고정 3:1 (위성 v3과 동일)
-
+    MIN_RR = 2.0  # 최소 손익비 제한 (구조 기반 SL/TP 사용)
     def open_trade(self, side, entry_price, df_snapshot, entry_time, analysis):
         """
         진입 시그널 발생 시 포지션을 열고 dict를 반환합니다. (1개만 허용)
         v4.3: RR 고정 3:1 — SL은 ICT FVG/OB 기준, TP = entry ± SL거리×3
         """
-        sl, _tp_unused = self.ict_engine.calculate_sl_tp(df_snapshot, side)
-        if not sl: return None
+        sl, tp = self.ict_engine.calculate_sl_tp(df_snapshot, side)
+        if not sl or not tp: return None
 
         sl_dist = abs(entry_price - sl) / entry_price
         if sl_dist == 0: return None
@@ -407,14 +405,11 @@ class Backtester:
         if not (0.0015 <= sl_dist <= 0.030):
             return None
 
-        # ── TP: 고정 RR 3:1 ──
-        if side == 'buy':
-            tp = entry_price + (entry_price - sl) * self.FIXED_RR
-        else:
-            tp = entry_price - (sl - entry_price) * self.FIXED_RR
-
+        # ── 손익비(RR) 검증 (최소 2.0) ──
         tp_dist = abs(tp - entry_price) / entry_price
-        rr = self.FIXED_RR
+        rr = tp_dist / sl_dist if sl_dist > 0 else 0
+        if rr < self.MIN_RR:
+            return None
 
         risk_report = self.risk_manager.calculate_position_size(self.balance, entry_price, sl)
         qty = risk_report['position_qty']

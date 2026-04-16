@@ -126,51 +126,40 @@ class DecisionMakerV5:
         result['reasons'].append(f"⚡ {kz['session']} 활성")
         result['confluence'] += 0.5
 
-        # ── 2. 1D BOS/MSS 시장 구조 ──
+        # ── 2. 1D EMA 200 추세 필터 ──
         df_1d = data_dict.get('1d')
-        if df_1d is None or len(df_1d) < 30:
-            result['reasons'].append("⚠️ 1D 데이터 부족")
+        if df_1d is None or len(df_1d) < 200:
+            result['reasons'].append("⚠️ 1D 데이터 부족 (EMA 200 필요)")
             return result
-
-        bos_mss   = self.ict_engine.detect_bos_mss(df_1d, swing_window=3)
-        struct_1d = bos_mss['direction']
-        if struct_1d == 'neutral':
-            result['reasons'].append("⏸ 1D 구조 미확정 → 대기")
-            return result
-        result['reasons'].append(f"🏛 1D 구조: {struct_1d.upper()} ({bos_mss['reason']})")
+        
+        current_price = float(df_1d.iloc[-1]['close'])
+        ema_200 = df_1d['close'].ewm(span=200, adjust=False).mean().iloc[-1]
+        
+        trend_1d = 'bullish' if current_price > ema_200 else 'bearish'
+        result['reasons'].append(f"📈 1D EMA200 기준 추세: {trend_1d.upper()}")
         result['confluence'] += 1.0
 
-        # ── 3. 200 EMA 거시 필터 ──
-        ema200    = df_1d['close'].ewm(span=200, adjust=False).mean().iloc[-1]
-        price_1d  = float(df_1d['close'].iloc[-1])
-        if price_1d < ema200 and struct_1d == 'bullish':
-            result['reasons'].append(f"⛔ 200EMA({ema200:.0f}) 아래 BUY → 대기")
-            return result
-        macro_tag = f"200EMA {'아래↓' if price_1d < ema200 else '위↑'}({ema200:.0f})"
-        result['reasons'].append(f"📏 {macro_tag}")
-        result['confluence'] += 0.5
-
-        # ── 4. 4H 20EMA 모멘텀 ──
+        # ── 3. 4H EMA 20 모멘텀 필터 ──
         df_4h = data_dict.get('4h')
         if df_4h is None or len(df_4h) < 20:
-            result['reasons'].append("⚠️ 4H 데이터 부족")
+            result['reasons'].append("⚠️ 4H 데이터 부족 (EMA 20 필요)")
+            return result
+        
+        ema_20_4h = df_4h['close'].ewm(span=20, adjust=False).mean().iloc[-1]
+        momentum_4h = 'bullish' if float(df_4h.iloc[-1]['close']) > ema_20_4h else 'bearish'
+        
+        if trend_1d != momentum_4h:
+            result['reasons'].append("⏸ 1D 추세와 4H 모멘텀 불일치 → 대기")
             return result
 
-        ema20_4h    = df_4h['close'].ewm(span=20, adjust=False).mean().iloc[-1]
-        price_4h    = float(df_4h['close'].iloc[-1])
-        momentum_4h = 'bullish' if price_4h > ema20_4h else 'bearish'
-        if momentum_4h != struct_1d:
-            result['reasons'].append(
-                f"⛔ 4H 모멘텀({momentum_4h}) ≠ 1D 구조({struct_1d}) → 대기"
-            )
-            return result
-        result['reasons'].append(f"📈 4H 20EMA 모멘텀: {momentum_4h} (가격 {price_4h:.0f})")
-        result['confluence'] += 1.0
-
-        side = 'buy' if struct_1d == 'bullish' else 'sell'
+        result['reasons'].append(f"🚀 4H EMA20 모멘텀 동기화 확인")
+        result['confluence'] += 0.5
+        
+        # ── 4. 방향 설정 ──
+        side = trend_1d
         result['side'] = side
 
-        # ── 5. 15m 스윕 + FVG 타점 ──
+        # ── 5. 15m 스윕 + FVG 타점 (스윕 필수) ──
         df_15m = data_dict.get('15m')
         if df_15m is None or len(df_15m) < 30:
             result['reasons'].append("⚠️ 15m 데이터 부족")
@@ -183,21 +172,20 @@ class DecisionMakerV5:
                          and s['index'] >= len(df_15m) - 24]
 
         if not recent_sweeps:
-            result['reasons'].append(
-                f"❌ {'SSL' if side=='buy' else 'BSL'} 스윕 없음 → 대기"
-            )
+            result['reasons'].append(f"❌ {'SSL' if side=='buy' else 'BSL'} 스윕 없음 → 대기")
             return result
 
-        sweep_idx = max(s['index'] for s in recent_sweeps)
         result['reasons'].append(f"🎯 {'SSL' if side=='buy' else 'BSL'} 스윕 확인")
         result['confluence'] += 1.0
 
-        # FVG 타점 확인
-        fvgs          = self.ict_engine.detect_fvg(df_15m)
+        sweep_idx = max(s['index'] for s in recent_sweeps)
         current_price = float(df_15m.iloc[-1]['close'])
-        fvg_type      = 'bullish' if side == 'buy' else 'bearish'
+        fvg_type = 'bullish' if side == 'buy' else 'bearish'
+        fvgs = self.ict_engine.detect_fvg(df_15m)
+        
         post_sweep_fvgs = [f for f in fvgs
                            if f['type'] == fvg_type and f['index'] >= sweep_idx]
+
         in_fvg = any(f['bottom'] * 0.999 <= current_price <= f['top'] * 1.001
                      for f in post_sweep_fvgs)
 
@@ -208,14 +196,12 @@ class DecisionMakerV5:
         result['reasons'].append(f"📦 스윕 후 FVG 타점 ({fvg_type})")
         result['confluence'] += 1.0
 
-        # MSS 보너스 (선택)
+        # MSS 보너스
         mss_signals = self.ict_engine.detect_mss(df_15m)
-        mss_type    = 'bullish' if side == 'buy' else 'bearish'
-        has_mss     = any(m['type'] == mss_type and m['index'] > sweep_idx
-                          for m in mss_signals)
+        has_mss = any(m['type'] == fvg_type and m['index'] > sweep_idx for m in mss_signals)
         if has_mss:
             result['confluence'] += 0.5
-            result['reasons'].append("🔄 MSS 확인 (+보너스)")
+            result['reasons'].append("🔄 MSS 확인 (+0.5)")
 
         # ── 6. 실시간 OI/L/S → 리스크 배율 ──
         ext_score = self._fetch_ext_score(symbol, side)

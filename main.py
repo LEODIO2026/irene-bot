@@ -170,16 +170,24 @@ class IreneAgent:
         print(f"{'─'*40}")
 
         try:
-            # 1. SL = ICT 구조 기반 / TP = 고정 RR 3:1 (v5)
-            sl, _ = self.ict_engine.calculate_sl_tp(df_entry, side)
-            if not sl:
-                print(f"아이린: {symbol} SL을 계산할 수 없어 진입을 포기합니다.")
+            # 1. SL/TP = ICT 구조 기반
+            sl, tp = self.ict_engine.calculate_sl_tp(df_entry, side)
+            if not sl or not tp:
+                print(f"아이린: {symbol} SL/TP를 계산할 수 없어 진입을 포기합니다.")
                 return
 
             current_price = float(df_entry.iloc[-1]['close'])
             sl_dist = abs(current_price - sl)
+            tp_dist = abs(tp - current_price)
+            
             if sl_dist == 0:
                 print(f"아이린: {symbol} SL 거리가 0 → 진입 취소")
+                return
+
+            # 손익비(RR) 검증 (최소 2.0)
+            rr = tp_dist / sl_dist
+            if rr < 2.0:
+                print(f"아이린: {symbol} 손익비({rr:.2f})가 2.0 미만 → 진입 취소")
                 return
 
             # SL 거리 범위 검증 (0.15%~3.0%)
@@ -190,12 +198,6 @@ class IreneAgent:
             if sl_dist_pct > 0.030:
                 print(f"아이린: {symbol} SL 너무 넓음({sl_dist_pct*100:.2f}%) → 진입 취소 (최대 3.0%)")
                 return
-
-            # TP = 고정 3:1
-            FIXED_RR = 3.0
-            tp = (current_price + sl_dist * FIXED_RR
-                  if side == 'buy'
-                  else current_price - sl_dist * FIXED_RR)
 
             # 2. 잔고 조회 + 가변 리스크 (OI/L/S 점수 기반)
             balance = self.fetcher.fetch_balance('USDT')
@@ -209,7 +211,7 @@ class IreneAgent:
             lev      = max(1, min(int(current_price * qty / balance) + 1, 20))
 
             print(f"아이린: {symbol} 잔고={balance:.2f}U | 리스크={risk_pct*100:.0f}%({risk_amt:.2f}U) | 수량={qty:.6f} | 레버리지~{lev}배")
-            print(f"아이린: SL={sl:.0f}({sl_dist_pct*100:.2f}%) | TP={tp:.0f} | RR={FIXED_RR}:1")
+            print(f"아이린: SL={sl:.0f}({sl_dist_pct*100:.2f}%) | TP={tp:.0f} | RR={rr:.2f}:1")
 
             # 3. 주문 실행!
             order = self.executor.place_order(symbol, side, qty, lev, stop_loss=sl, take_profit=tp)
