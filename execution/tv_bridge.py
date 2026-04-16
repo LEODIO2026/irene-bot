@@ -17,11 +17,29 @@ def _get_killzone() -> str:
     ny = ZoneInfo("America/New_York")
     now_ny = _dt.now(ny)
     hm = now_ny.hour * 100 + now_ny.minute
-    if hm >= 2000:               return '🟡 아시아'   # NY 20:00–00:00
-    if 200  <= hm < 500:         return '🟢 런던'     # NY 02:00–05:00
-    if 830  <= hm < 1100:        return '🔴 뉴욕'     # NY 08:30–11:00 (나스닥 개장)
-    if 1330 <= hm < 1600:        return '🟠 NY PM'    # NY 13:30–16:00 (되돌림)
+    if hm >= 2000:               return '🟡 아시아'
+    if 200  <= hm < 500:         return '🟢 런던'
+    if 830  <= hm < 1100:        return '🔴 뉴욕'
+    if 1330 <= hm < 1600:        return '🟠 NY PM'
     return '⚪ 대기'
+
+def _get_kst_killzone_times() -> dict:
+    """현재 DST 여부에 따른 KST 킬존 시간 반환"""
+    from datetime import datetime as _dt
+    ny = ZoneInfo("America/New_York")
+    kst = ZoneInfo("Asia/Seoul")
+    # NY 기준점 → KST 변환으로 오프셋 계산
+    offset_h = int((_dt.now(kst).utcoffset() - _dt.now(ny).utcoffset()).total_seconds() / 3600)
+    def _shift(h, m=0):
+        total = h * 60 + m + offset_h * 60
+        return f"{(total // 60) % 24:02d}:{total % 60:02d}"
+    return {
+        'asia':   f"{_shift(20)}–{_shift(0)}",    # NY 20:00–00:00
+        'london': f"{_shift(2)}–{_shift(5)}",      # NY 02:00–05:00
+        'ny':     f"{_shift(8,30)}–{_shift(11)}",  # NY 08:30–11:00
+        'nypm':   f"{_shift(13,30)}–{_shift(16)}", # NY 13:30–16:00
+        'dst':    offset_h == 13,                  # DST 여부
+    }
 
 load_dotenv()
 
@@ -139,6 +157,7 @@ class TVBridge:
                     __import__('datetime').datetime.utcnow() + __import__('datetime').timedelta(hours=9)
                 ),
                 'killzone': _get_killzone(),
+                'kz_times': _get_kst_killzone_times(),
                 'backtest_status': self.backtest_status,
                 'pending_proposals': self.agent.status.get('pending_proposals', {})
             })

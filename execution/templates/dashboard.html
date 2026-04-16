@@ -255,6 +255,7 @@ tr td:last-child  { border-radius:0 8px 8px 0; }
 .kz-seg-dot    { font-size:1.1em; flex-shrink:0; }
 .kz-seg-badge  { display:none; font-size:.55em; font-weight:800; padding:1px 5px; border-radius:5px; background:currentColor; color:#0f1117; margin-left:auto; flex-shrink:0; }
 .kz-seg.kz-now .kz-seg-badge { display:inline-block; }
+.kz-kst { font-size:.72em; font-weight:600; opacity:.75; margin-left:3px; font-variant-numeric:tabular-nums; }
 </style>
 </head>
 <body>
@@ -284,7 +285,7 @@ tr td:last-child  { border-radius:0 8px 8px 0; }
   <div class="kz-seg kz-seg-asia" id="kzAsia">
     <div class="kz-seg-dot">🟡</div>
     <div class="kz-seg-info">
-      <div class="kz-seg-name">아시아</div>
+      <div class="kz-seg-name">아시아 <span class="kz-kst" id="kztAsia">09:00–13:00</span></div>
       <div class="kz-seg-time">NY 20:00–00:00</div>
     </div>
     <div class="kz-seg-badge">NOW</div>
@@ -292,7 +293,7 @@ tr td:last-child  { border-radius:0 8px 8px 0; }
   <div class="kz-seg kz-seg-london" id="kzLondon">
     <div class="kz-seg-dot">🟢</div>
     <div class="kz-seg-info">
-      <div class="kz-seg-name">런던</div>
+      <div class="kz-seg-name">런던 <span class="kz-kst" id="kztLondon">15:00–18:00</span></div>
       <div class="kz-seg-time">NY 02:00–05:00</div>
     </div>
     <div class="kz-seg-badge">NOW</div>
@@ -300,7 +301,7 @@ tr td:last-child  { border-radius:0 8px 8px 0; }
   <div class="kz-seg kz-seg-ny" id="kzNY">
     <div class="kz-seg-dot">🔴</div>
     <div class="kz-seg-info">
-      <div class="kz-seg-name">뉴욕</div>
+      <div class="kz-seg-name">뉴욕 <span class="kz-kst" id="kztNY">21:30–00:00</span></div>
       <div class="kz-seg-time">NY 08:30–11:00</div>
     </div>
     <div class="kz-seg-badge">NOW</div>
@@ -308,7 +309,7 @@ tr td:last-child  { border-radius:0 8px 8px 0; }
   <div class="kz-seg kz-seg-lc" id="kzLC">
     <div class="kz-seg-dot">🟠</div>
     <div class="kz-seg-info">
-      <div class="kz-seg-name">NY PM</div>
+      <div class="kz-seg-name">NY PM <span class="kz-kst" id="kztNYPM">02:30–05:00</span></div>
       <div class="kz-seg-time">NY 13:30–16:00</div>
     </div>
     <div class="kz-seg-badge">NOW</div>
@@ -585,6 +586,15 @@ async function update() {
     else if (kz.includes('런던'))    document.getElementById('kzLondon').classList.add('kz-now');
     else if (kz.includes('뉴욕'))    document.getElementById('kzNY').classList.add('kz-now');
     else if (kz.includes('PM'))      document.getElementById('kzLC').classList.add('kz-now');
+
+    // KST 시간 동적 업데이트 (DST 반영)
+    if (d.kz_times) {
+      const t = d.kz_times;
+      document.getElementById('kztAsia').textContent   = t.asia;
+      document.getElementById('kztLondon').textContent = t.london;
+      document.getElementById('kztNY').textContent     = t.ny;
+      document.getElementById('kztNYPM').textContent   = t.nypm;
+    }
     const pill = document.getElementById('modePill');
     pill.textContent = d.mode;
     pill.className = 'mode-pill ' + (d.mode === 'MAINNET' ? 'mode-live' : 'mode-test');
