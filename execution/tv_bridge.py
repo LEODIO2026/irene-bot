@@ -12,15 +12,15 @@ except ImportError:
     from backports.zoneinfo import ZoneInfo  # Python 3.8 fallback
 
 def _get_killzone() -> str:
-    """뉴욕 현지시간 기준 킬존 판별 (DST 자동 반영)"""
+    """뉴욕 현지시간 기준 크립토 킬존 판별 (DST 자동 반영)"""
     from datetime import datetime as _dt
     ny = ZoneInfo("America/New_York")
     now_ny = _dt.now(ny)
     hm = now_ny.hour * 100 + now_ny.minute
-    if hm >= 2000:                   return '🟡 아시아'      # NY 20:00–00:00
-    if 200  <= hm < 500:             return '🟢 런던'        # NY 02:00–05:00
-    if 700  <= hm < 1000:            return '🔴 뉴욕'        # NY 07:00–10:00
-    if 1000 <= hm < 1200:            return '🟠 런던클로즈'  # NY 10:00–12:00
+    if hm >= 2000:               return '🟡 아시아'   # NY 20:00–00:00
+    if 200  <= hm < 500:         return '🟢 런던'     # NY 02:00–05:00
+    if 830  <= hm < 1100:        return '🔴 뉴욕'     # NY 08:30–11:00 (나스닥 개장)
+    if 1330 <= hm < 1600:        return '🟠 NY PM'    # NY 13:30–16:00 (되돌림)
     return '⚪ 대기'
 
 load_dotenv()

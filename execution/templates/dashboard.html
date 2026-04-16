@@ -230,28 +230,30 @@ tr td:last-child  { border-radius:0 8px 8px 0; }
   margin-bottom:16px;
 }
 .kz-seg {
-  border-radius:12px; padding:10px 12px;
+  border-radius:10px; padding:7px 10px;
   border:1px solid rgba(255,255,255,0.06);
   background:rgba(255,255,255,0.02);
   transition:all .3s;
   position:relative; overflow:hidden;
+  display:flex; align-items:center; gap:8px;
 }
 .kz-seg.kz-now {
   border-color:currentColor !important;
-  box-shadow:0 0 16px -4px currentColor;
+  box-shadow:0 0 14px -4px currentColor;
 }
 .kz-seg.kz-now::before {
   content:''; position:absolute; inset:0;
-  background:currentColor; opacity:.08;
+  background:currentColor; opacity:.07;
 }
 .kz-seg-asia   { color:#fbbf24; }
 .kz-seg-london { color:#34d399; }
 .kz-seg-ny     { color:#f87171; }
 .kz-seg-lc     { color:#fb923c; }
-.kz-seg-label  { font-size:.62em; font-weight:800; text-transform:uppercase; letter-spacing:1px; opacity:.7; margin-bottom:3px; }
-.kz-seg-name   { font-size:.82em; font-weight:800; margin-bottom:2px; }
-.kz-seg-time   { font-size:.62em; opacity:.55; font-variant-numeric:tabular-nums; }
-.kz-seg-badge  { display:none; font-size:.58em; font-weight:800; padding:2px 6px; border-radius:6px; background:currentColor; color:#0f1117; margin-top:5px; }
+.kz-seg-info   { display:flex; flex-direction:column; gap:1px; min-width:0; }
+.kz-seg-name   { font-size:.75em; font-weight:800; white-space:nowrap; }
+.kz-seg-time   { font-size:.6em; opacity:.5; font-variant-numeric:tabular-nums; }
+.kz-seg-dot    { font-size:1.1em; flex-shrink:0; }
+.kz-seg-badge  { display:none; font-size:.55em; font-weight:800; padding:1px 5px; border-radius:5px; background:currentColor; color:#0f1117; margin-left:auto; flex-shrink:0; }
 .kz-seg.kz-now .kz-seg-badge { display:inline-block; }
 </style>
 </head>
@@ -280,28 +282,36 @@ tr td:last-child  { border-radius:0 8px 8px 0; }
 <!-- ── 킬존 인디케이터 ── -->
 <div class="kz-bar">
   <div class="kz-seg kz-seg-asia" id="kzAsia">
-    <div class="kz-seg-label">Asian KZ</div>
-    <div class="kz-seg-name">🟡 아시아 세션</div>
-    <div class="kz-seg-time">09:00 – 13:00 KST</div>
-    <div class="kz-seg-badge">● NOW</div>
+    <div class="kz-seg-dot">🟡</div>
+    <div class="kz-seg-info">
+      <div class="kz-seg-name">아시아</div>
+      <div class="kz-seg-time">NY 20:00–00:00</div>
+    </div>
+    <div class="kz-seg-badge">NOW</div>
   </div>
   <div class="kz-seg kz-seg-london" id="kzLondon">
-    <div class="kz-seg-label">London KZ</div>
-    <div class="kz-seg-name">🟢 런던 오픈</div>
-    <div class="kz-seg-time">15:00 – 18:00 KST</div>
-    <div class="kz-seg-badge">● NOW</div>
+    <div class="kz-seg-dot">🟢</div>
+    <div class="kz-seg-info">
+      <div class="kz-seg-name">런던</div>
+      <div class="kz-seg-time">NY 02:00–05:00</div>
+    </div>
+    <div class="kz-seg-badge">NOW</div>
   </div>
   <div class="kz-seg kz-seg-ny" id="kzNY">
-    <div class="kz-seg-label">New York KZ</div>
-    <div class="kz-seg-name">🔴 뉴욕 오픈</div>
-    <div class="kz-seg-time">20:00 – 23:00 KST</div>
-    <div class="kz-seg-badge">● NOW</div>
+    <div class="kz-seg-dot">🔴</div>
+    <div class="kz-seg-info">
+      <div class="kz-seg-name">뉴욕</div>
+      <div class="kz-seg-time">NY 08:30–11:00</div>
+    </div>
+    <div class="kz-seg-badge">NOW</div>
   </div>
   <div class="kz-seg kz-seg-lc" id="kzLC">
-    <div class="kz-seg-label">London Close KZ</div>
-    <div class="kz-seg-name">🟠 런던 클로즈</div>
-    <div class="kz-seg-time">23:00 – 01:00 KST</div>
-    <div class="kz-seg-badge">● NOW</div>
+    <div class="kz-seg-dot">🟠</div>
+    <div class="kz-seg-info">
+      <div class="kz-seg-name">NY PM</div>
+      <div class="kz-seg-time">NY 13:30–16:00</div>
+    </div>
+    <div class="kz-seg-badge">NOW</div>
   </div>
 </div>
 
@@ -571,10 +581,10 @@ async function update() {
 
     // 킬존 인디케이터 바 업데이트
     ['kzAsia','kzLondon','kzNY','kzLC'].forEach(id => document.getElementById(id).classList.remove('kz-now'));
-    if (kz.includes('아시아'))      document.getElementById('kzAsia').classList.add('kz-now');
-    else if (kz.includes('클로즈')) document.getElementById('kzLC').classList.add('kz-now');
-    else if (kz.includes('런던'))   document.getElementById('kzLondon').classList.add('kz-now');
-    else if (kz.includes('뉴욕'))   document.getElementById('kzNY').classList.add('kz-now');
+    if      (kz.includes('아시아'))  document.getElementById('kzAsia').classList.add('kz-now');
+    else if (kz.includes('런던'))    document.getElementById('kzLondon').classList.add('kz-now');
+    else if (kz.includes('뉴욕'))    document.getElementById('kzNY').classList.add('kz-now');
+    else if (kz.includes('PM'))      document.getElementById('kzLC').classList.add('kz-now');
     const pill = document.getElementById('modePill');
     pill.textContent = d.mode;
     pill.className = 'mode-pill ' + (d.mode === 'MAINNET' ? 'mode-live' : 'mode-test');

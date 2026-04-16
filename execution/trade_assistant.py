@@ -617,17 +617,17 @@ class TradeAssistant:
         now_ny = _dt2.datetime.now(ZoneInfo("America/New_York"))
         hm = now_ny.hour * 100 + now_ny.minute
         if hm >= 2000:
-            killzone = '🟡 아시아 킬존 (NY 20:00–00:00) — 활성 · 유동성 축적 구간'
+            killzone = '🟡 아시아 킬존 (NY 20:00–00:00) — 활성 · BSL/SSL 축적 · 돌파 추종 자제'
         elif 200 <= hm < 500:
-            killzone = '🟢 런던 킬존 (NY 02:00–05:00) — 활성 · Judas Swing / MSS 주시'
-        elif 700 <= hm < 1000:
-            killzone = '🔴 뉴욕 킬존 (NY 07:00–10:00) — 활성 · 최고 변동성 · FVG/OB 진입 타점'
-        elif 1000 <= hm < 1200:
-            killzone = '🟠 런던 클로즈 킬존 (NY 10:00–12:00) — 활성 · TP 실현 / 추세 되돌림'
+            killzone = '🟢 런던 킬존 (NY 02:00–05:00) — 활성 · Judas Swing 주의 · IFVG 카운터 타점'
+        elif 830 <= hm < 1100:
+            killzone = '🔴 크립토 뉴욕 킬존 (NY 08:30–11:00) — 활성 · 나스닥 커플링 · MSS+FVG 최고 승률'
+        elif 1330 <= hm < 1600:
+            killzone = '🟠 NY PM 세션 (NY 13:30–16:00) — 활성 · 되돌림 / 부분 익절 구간'
         else:
             if hm < 200:    next_kz = 'NY 02:00 (런던)'
-            elif hm < 700:  next_kz = 'NY 07:00 (뉴욕)'
-            elif hm < 1000: next_kz = 'NY 10:00 (런던클로즈)'
+            elif hm < 830:  next_kz = 'NY 08:30 (뉴욕)'
+            elif hm < 1330: next_kz = 'NY 13:30 (NY PM)'
             elif hm < 2000: next_kz = 'NY 20:00 (아시아)'
             else:            next_kz = 'NY 02:00 (런던)'
             killzone = f'⚪ 킬존 외 대기 구간 — 다음 킬존: {next_kz}'
