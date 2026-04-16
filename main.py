@@ -230,6 +230,12 @@ class IreneAgent:
                     'exit_price':  None,
                 })
                 print(f"🎉 아이린: {symbol} {side.upper()} 진입 성공! 쿨다운 {self.decision_maker.cooldown_minutes}분 시작")
+                
+                # 텔레그램 알림 추가
+                self.notifier.send_trade_execution_alert(
+                    symbol=symbol, side=side, qty=f"{qty:.6f}", 
+                    price=current_price, sl=sl, tp=tp, account='core'
+                )
             
         except Exception as e:
             print(f"아이린: {symbol} 자율 매매 실행 중 오류: {e}")
@@ -299,6 +305,12 @@ class IreneAgent:
                     'exit_price':  None,
                 })
                 print(f"🎉 [위성] {symbol} {side.upper()} 진입 성공! 복리배율={signal['compound_factor']:.2f}x")
+
+                # 텔레그램 알림 추가
+                self.notifier.send_trade_execution_alert(
+                    symbol=symbol, side=side, qty=f"{qty:.6f}", 
+                    price=current_price, sl=sl, tp=tp, account='satellite'
+                )
 
         except Exception as e:
             print(f"[위성] {symbol} 실행 오류: {e}")

@@ -849,6 +849,13 @@ class TradeAssistant:
             }
             self.agent._append_trade_log(entry)
 
+            # 텔레그램 알람 추가 (Assistant 통한 수동 매매)
+            if hasattr(self.agent, 'notifier'):
+                self.agent.notifier.send_trade_execution_alert(
+                    symbol=symbol, side=side, qty=f"{qty:.6f}", 
+                    price=current_price, sl=sl, tp=tp, account='core'
+                )
+
             # 실행 후 대화에 결과 기록
             if session_id and session_id in self._sessions:
                 exec_msg = (

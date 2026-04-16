@@ -181,6 +181,25 @@ class TelegramBot:
         
         self.send_message("\n".join(msg))
 
+    def send_trade_execution_alert(self, symbol, side, qty, price, sl, tp, account='core'):
+        """실제 주문 체결 알림 전송 (동기)"""
+        acc_label = "🔵 코어(Core)" if account == 'core' else "🔴 위성(Shuttle)"
+        title = f"🚀 <b>거래 진입 성공!</b> ({symbol})"
+        action = "📈 LONG" if side.lower() == 'buy' else "📉 SHORT"
+        
+        msg = [
+            title,
+            f"\n계정: {acc_label}",
+            f"방향: {action}",
+            f"수량: {qty}",
+            f"진입가: {price:,.2f}",
+            f"손절가 (SL): {sl:,.2f}",
+            f"익절가 (TP): {tp:,.2f}",
+            f"\n아이린이 시장을 감시하며 대응할게요. 💎✨"
+        ]
+        
+        self.send_message("\n".join(msg))
+
     # ── 실행 루프 ─────────────────────────────────────────────
 
     def run_polling(self):
