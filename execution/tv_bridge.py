@@ -118,7 +118,15 @@ class TVBridge:
                 'risk_pct': int(self.agent.risk_manager.risk_per_trade * 100),
                 'min_confluence': self.agent.decision_maker.min_confluence,
                 'max_score': self.agent.decision_maker.max_score,
-                'server_time': _time.strftime('%Y-%m-%d %H:%M:%S'),
+                'server_time': (lambda kst: kst.strftime('%H:%M:%S'))(
+                    __import__('datetime').datetime.utcnow() + __import__('datetime').timedelta(hours=9)
+                ),
+                'killzone': (lambda h: (
+                    '🟢 런던' if 15 <= h < 17 else
+                    '🟢 뉴욕' if h >= 22 or h < 1 else
+                    '🟡 아시안' if 1 <= h < 4 else
+                    '⚪ 대기'
+                ))( (__import__('datetime').datetime.utcnow() + __import__('datetime').timedelta(hours=9)).hour ),
                 'backtest_status': self.backtest_status,
                 'pending_proposals': self.agent.status.get('pending_proposals', {})
             })

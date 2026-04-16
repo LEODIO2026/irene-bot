@@ -67,7 +67,12 @@ body::before {
   text-decoration:none; transition:all .2s; white-space:nowrap;
 }
 .btn-assistant:hover { background:rgba(167,139,250,0.22); border-color:rgba(167,139,250,0.55); }
-.server-time { font-size:0.7em; color:var(--muted); font-variant-numeric:tabular-nums; }
+.server-time { display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
+.server-time .st-clock { font-size:0.72em; color:var(--muted); font-variant-numeric:tabular-nums; }
+.server-time .st-kz { font-size:0.65em; font-weight:700; padding:2px 7px; border-radius:8px; }
+.st-kz.kz-active { background:rgba(52,211,153,0.12); color:var(--green); border:1px solid rgba(52,211,153,0.3); }
+.st-kz.kz-asian  { background:rgba(251,191,36,0.12);  color:var(--yellow); border:1px solid rgba(251,191,36,0.3); }
+.st-kz.kz-off    { background:rgba(255,255,255,0.04); color:var(--muted);  border:1px solid rgba(255,255,255,0.08); }
 .hb-dot { width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); animation:hb 1.5s infinite; display:inline-block; }
 @keyframes hb { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
 
@@ -235,7 +240,10 @@ tr td:last-child  { border-radius:0 8px 8px 0; }
   <div class="hd-right">
     <a href="/trade-assistant" class="btn-assistant">✨ 아이린 어시스턴트</a>
     <div id="modePill" class="mode-pill mode-live">MAINNET</div>
-    <div class="server-time" id="srvTime">--:--:--</div>
+    <div class="server-time">
+      <span class="st-clock" id="srvTime">--:--:--</span>
+      <span class="st-kz kz-off" id="killzoneBadge">⚪ 대기</span>
+    </div>
   </div>
 </div>
 
@@ -497,7 +505,11 @@ async function update() {
     }
 
     // 헤더
-    document.getElementById('srvTime').textContent = d.server_time || '--';
+    document.getElementById('srvTime').textContent = (d.server_time || '--') + ' KST';
+    const kzEl = document.getElementById('killzoneBadge');
+    const kz = d.killzone || '⚪ 대기';
+    kzEl.textContent = kz;
+    kzEl.className = 'st-kz ' + (kz.includes('런던') || kz.includes('뉴욕') ? 'kz-active' : kz.includes('아시안') ? 'kz-asian' : 'kz-off');
     const pill = document.getElementById('modePill');
     pill.textContent = d.mode;
     pill.className = 'mode-pill ' + (d.mode === 'MAINNET' ? 'mode-live' : 'mode-test');
