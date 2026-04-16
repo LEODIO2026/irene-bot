@@ -122,9 +122,10 @@ class TVBridge:
                     __import__('datetime').datetime.utcnow() + __import__('datetime').timedelta(hours=9)
                 ),
                 'killzone': (lambda h: (
-                    '🟢 런던' if 15 <= h < 17 else
-                    '🟢 뉴욕' if h >= 22 or h < 1 else
-                    '🟡 아시안' if 1 <= h < 4 else
+                    '🟡 아시아' if 9 <= h < 13 else
+                    '🟢 런던'   if 15 <= h < 18 else
+                    '🔴 뉴욕'   if 20 <= h < 23 else
+                    '🟠 런던클로즈' if h == 23 or h < 1 else
                     '⚪ 대기'
                 ))( (__import__('datetime').datetime.utcnow() + __import__('datetime').timedelta(hours=9)).hour ),
                 'backtest_status': self.backtest_status,
