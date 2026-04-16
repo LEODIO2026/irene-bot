@@ -608,19 +608,29 @@ class TradeAssistant:
         import datetime as _dt
         kst_now = _dt.datetime.utcnow() + _dt.timedelta(hours=9)
         kst_str = kst_now.strftime('%Y-%m-%d %H:%M KST')
-        kst_hour = kst_now.hour
-        kst_min  = kst_now.minute
-        if 9 <= kst_hour < 13:
-            killzone = '🟡 아시아 킬존 (09:00–13:00 KST) — 활성 · 유동성 축적 구간'
-        elif 15 <= kst_hour < 18:
-            killzone = '🟢 런던 킬존 (15:00–18:00 KST) — 활성 · Judas Swing / MSS 주시'
-        elif 20 <= kst_hour < 23:
-            killzone = '🔴 뉴욕 킬존 (20:00–23:00 KST) — 활성 · 최고 변동성 · FVG/OB 진입 타점'
-        elif kst_hour == 23 or kst_hour < 1:
-            killzone = '🟠 런던 클로즈 킬존 (23:00–01:00 KST) — 활성 · TP 실현 / 추세 되돌림'
+        # 뉴욕 현지시간 기준 킬존 판별 (DST 자동 반영)
+        try:
+            from zoneinfo import ZoneInfo
+        except ImportError:
+            from backports.zoneinfo import ZoneInfo
+        import datetime as _dt2
+        now_ny = _dt2.datetime.now(ZoneInfo("America/New_York"))
+        hm = now_ny.hour * 100 + now_ny.minute
+        if hm >= 2000:
+            killzone = '🟡 아시아 킬존 (NY 20:00–00:00) — 활성 · 유동성 축적 구간'
+        elif 200 <= hm < 500:
+            killzone = '🟢 런던 킬존 (NY 02:00–05:00) — 활성 · Judas Swing / MSS 주시'
+        elif 700 <= hm < 1000:
+            killzone = '🔴 뉴욕 킬존 (NY 07:00–10:00) — 활성 · 최고 변동성 · FVG/OB 진입 타점'
+        elif 1000 <= hm < 1200:
+            killzone = '🟠 런던 클로즈 킬존 (NY 10:00–12:00) — 활성 · TP 실현 / 추세 되돌림'
         else:
-            next_kz = '아시아 09:00' if kst_hour < 9 else '런던 15:00' if kst_hour < 15 else '뉴욕 20:00' if kst_hour < 20 else '런던클로즈 23:00'
-            killzone = f'⚪ 킬존 외 대기 구간 — 다음 킬존: {next_kz} KST'
+            if hm < 200:    next_kz = 'NY 02:00 (런던)'
+            elif hm < 700:  next_kz = 'NY 07:00 (뉴욕)'
+            elif hm < 1000: next_kz = 'NY 10:00 (런던클로즈)'
+            elif hm < 2000: next_kz = 'NY 20:00 (아시아)'
+            else:            next_kz = 'NY 02:00 (런던)'
+            killzone = f'⚪ 킬존 외 대기 구간 — 다음 킬존: {next_kz}'
 
         market_ctx = (
             f"\n\n[자동 수집 시장 데이터 — {symbol}]\n"

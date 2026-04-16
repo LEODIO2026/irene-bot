@@ -6,6 +6,23 @@ import json
 from datetime import datetime
 from dotenv import load_dotenv
 
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    from backports.zoneinfo import ZoneInfo  # Python 3.8 fallback
+
+def _get_killzone() -> str:
+    """뉴욕 현지시간 기준 킬존 판별 (DST 자동 반영)"""
+    from datetime import datetime as _dt
+    ny = ZoneInfo("America/New_York")
+    now_ny = _dt.now(ny)
+    hm = now_ny.hour * 100 + now_ny.minute
+    if hm >= 2000:                   return '🟡 아시아'      # NY 20:00–00:00
+    if 200  <= hm < 500:             return '🟢 런던'        # NY 02:00–05:00
+    if 700  <= hm < 1000:            return '🔴 뉴욕'        # NY 07:00–10:00
+    if 1000 <= hm < 1200:            return '🟠 런던클로즈'  # NY 10:00–12:00
+    return '⚪ 대기'
+
 load_dotenv()
 
 class TVBridge:
@@ -121,13 +138,7 @@ class TVBridge:
                 'server_time': (lambda kst: kst.strftime('%H:%M:%S'))(
                     __import__('datetime').datetime.utcnow() + __import__('datetime').timedelta(hours=9)
                 ),
-                'killzone': (lambda h: (
-                    '🟡 아시아' if 9 <= h < 13 else
-                    '🟢 런던'   if 15 <= h < 18 else
-                    '🔴 뉴욕'   if 20 <= h < 23 else
-                    '🟠 런던클로즈' if h == 23 or h < 1 else
-                    '⚪ 대기'
-                ))( (__import__('datetime').datetime.utcnow() + __import__('datetime').timedelta(hours=9)).hour ),
+                'killzone': _get_killzone(),
                 'backtest_status': self.backtest_status,
                 'pending_proposals': self.agent.status.get('pending_proposals', {})
             })
