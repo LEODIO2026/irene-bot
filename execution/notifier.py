@@ -72,7 +72,7 @@ class TelegramBot:
                 InlineKeyboardButton("⚡ Claude 4.6 Sonnet", callback_data='claude-sonnet-4-6'),
             ],
             [
-                InlineKeyboardButton("💎 Gemini 3.1 Pro", callback_data='gemini-3.1-pro-latest'),
+                InlineKeyboardButton("💎 Gemini 3.1 Pro", callback_data='gemini-3.1-pro-preview'),
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
