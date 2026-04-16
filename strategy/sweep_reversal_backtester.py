@@ -27,15 +27,28 @@ from strategy.order_flow_backtester import build_order_flow_states
 
 
 # ═══════════════════════════════════════════════════════
-#  킬존 판별 (UTC 기준)
+#  킬존 판별 (NY 현지시간 기준, DST 자동 반영)
 # ═══════════════════════════════════════════════════════
 
 def is_kill_zone(ts: pd.Timestamp) -> str:
-    """UTC 시간으로 킬존 세션 반환. 없으면 ''."""
-    h = ts.hour
-    if 7  <= h < 10: return 'london'
-    if 13 <= h < 16: return 'newyork'
-    if 0  <= h < 3:  return 'asia'
+    """NY 현지시간 기준 크립토 킬존 세션 반환. 없으면 ''."""
+    try:
+        from zoneinfo import ZoneInfo
+    except ImportError:
+        from backports.zoneinfo import ZoneInfo
+    from datetime import timezone
+    ny = ZoneInfo("America/New_York")
+    # pandas Timestamp → UTC aware → NY 변환
+    if ts.tzinfo is None:
+        ts_utc = ts.tz_localize('UTC')
+    else:
+        ts_utc = ts.tz_convert('UTC')
+    now_ny = ts_utc.astimezone(ny)
+    hm = now_ny.hour * 100 + now_ny.minute
+    if hm >= 2000:         return 'asia'     # NY 20:00–00:00
+    if 200  <= hm < 500:   return 'london'   # NY 02:00–05:00
+    if 830  <= hm < 1100:  return 'newyork'  # NY 08:30–11:00
+    if 1330 <= hm < 1600:  return 'nypm'     # NY 13:30–16:00
     return ''
 
 

@@ -18,10 +18,18 @@ def load_data():
     return df_15m, df_4h, df_1d
 
 def is_kill_zone(dt):
-    dt = pd.to_datetime(dt, unit='ms', utc=True)
-    ny_hour = (dt.hour - 4) % 24
-    if 9 <= ny_hour < 11: return 'newyork_am'
-    if 13 <= ny_hour < 16: return 'newyork_pm'
+    try:
+        from zoneinfo import ZoneInfo
+    except ImportError:
+        from backports.zoneinfo import ZoneInfo
+    ts = pd.to_datetime(dt, unit='ms', utc=True)
+    ny = ZoneInfo("America/New_York")
+    now_ny = ts.astimezone(ny)
+    hm = now_ny.hour * 100 + now_ny.minute
+    if hm >= 2000:         return 'asia'
+    if 200  <= hm < 500:   return 'london'
+    if 830  <= hm < 1100:  return 'newyork_am'
+    if 1330 <= hm < 1600:  return 'newyork_pm'
     return False
 
 def check_trade(trade, row, rr):

@@ -313,27 +313,35 @@ class ICTEngine:
 
     def is_kill_zone(self, current_time=None):
         """
-        특정 시각(또는 현재 시각)이 ICT 킬존(기관 활동 시간대)인지 판단합니다.
-        
+        뉴욕 현지시간 기준 크립토 킬존 판별 (DST 자동 반영).
         Args:
-            current_time (datetime, optional): 판단할 기준 시각 (UTC). None이면 현재 시각 사용.
+            current_time: UTC datetime. None이면 현재 시각 사용.
         """
         from datetime import datetime, timezone
+        try:
+            from zoneinfo import ZoneInfo
+        except ImportError:
+            from backports.zoneinfo import ZoneInfo
+
         if current_time is None:
             current_time = datetime.now(timezone.utc)
-            
-        hour = current_time.hour
 
-        if 0 <= hour < 4:
-            return {'in_kill_zone': True, 'session': '아시아 킬존', 'weight': 0.3}
-        elif 7 <= hour < 10:
-            return {'in_kill_zone': True, 'session': '런던 킬존', 'weight': 0.5}
-        elif 12 <= hour < 15:
-            return {'in_kill_zone': True, 'session': '뉴욕 킬존', 'weight': 0.5}
-        elif 15 <= hour < 17:
-            return {'in_kill_zone': True, 'session': '뉴욕 런치', 'weight': 0.3}
-        else:
-            return {'in_kill_zone': False, 'session': '킬존 외', 'weight': 0.0}
+        # UTC → NY 현지시간 변환
+        if current_time.tzinfo is None:
+            current_time = current_time.replace(tzinfo=timezone.utc)
+        ny = ZoneInfo("America/New_York")
+        now_ny = current_time.astimezone(ny)
+        hm = now_ny.hour * 100 + now_ny.minute
+
+        if hm >= 2000:               # NY 20:00–00:00
+            return {'in_kill_zone': True,  'session': '아시아 킬존',  'weight': 0.3}
+        if 200  <= hm < 500:         # NY 02:00–05:00
+            return {'in_kill_zone': True,  'session': '런던 킬존',    'weight': 0.5}
+        if 830  <= hm < 1100:        # NY 08:30–11:00 (나스닥 개장)
+            return {'in_kill_zone': True,  'session': '뉴욕 킬존',    'weight': 0.5}
+        if 1330 <= hm < 1600:        # NY 13:30–16:00
+            return {'in_kill_zone': True,  'session': 'NY PM',        'weight': 0.3}
+        return {'in_kill_zone': False, 'session': '킬존 외', 'weight': 0.0}
 
     def detect_premium_discount(self, df, lookback=50):
         """
