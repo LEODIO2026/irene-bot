@@ -27,10 +27,6 @@ class TelegramBot:
             print("⚠️ TELEGRAM_BOT_TOKEN이 설정되지 않았습니다.")
             return
 
-        # PTB Application 구축
-        self.app = ApplicationBuilder().token(self.token).build()
-        self._setup_handlers()
-
     def _setup_handlers(self):
         self.app.add_handler(CommandHandler("start", self._start_command))
         self.app.add_handler(CommandHandler("help", self._help_command))
@@ -154,8 +150,10 @@ class TelegramBot:
 
     def send_message(self, text, parse_mode='HTML'):
         """동기 인터페이스: 다른 스레드에서 호출 가능"""
-        if self._loop and self.app:
+        if self._loop and self.app and self.app.running:
             asyncio.run_coroutine_threadsafe(self._send_msg_async(text, parse_mode), self._loop)
+        else:
+            print(f"⚠️ 텔레그램 앱이 아직 실행 중이 아닙니다. 메시지 대기: {text[:20]}...")
 
     def send_trade_proposal(self, symbol, side, price, sl, tp, reasons):
         """거래 제안 알림 전송 (동기)"""
@@ -206,6 +204,11 @@ class TelegramBot:
         """별도 스레드에서 실행"""
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
+        
+        # PTB Application 구축 (현재 스레드의 루프 안에서)
+        print("🚀 아이린 텔레그램 봇 초기화 중...")
+        self.app = ApplicationBuilder().token(self.token).build()
+        self._setup_handlers()
         
         print("🚀 아이린 텔레그램 봇 리스너 가동...")
         self.app.run_polling(close_loop=False, stop_signals=False)

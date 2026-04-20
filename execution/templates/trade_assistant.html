@@ -599,7 +599,7 @@
           <div class="drop-zone" id="dropZone">📷 차트 이미지를 여기에 놓으세요</div>
           <!-- 첨부 이미지 썸네일 -->
           <div class="img-attach-preview" id="imgPreviewBox"></div>
-          <textarea id="chatInput" rows="1" placeholder="시장 분석 또는 차트 설명 입력... (Shift+Enter: 줄바꿈 / 이미지 드래그앤드롭 가능)"
+          <textarea id="chatInput" rows="1" placeholder="시장 분석 또는 차트 설명 입력... (Shift+Enter: 줄바꿈 / 이미지 붙여넣기·드래그 가능)"
             onkeydown="handleKeydown(event)" oninput="autoResize(this)"></textarea>
           <div class="input-actions">
             <div class="input-actions-left">
@@ -887,6 +887,37 @@ function renderImagePreviews() {
   document.addEventListener('dragover', e => e.preventDefault());
   document.addEventListener('drop', e => e.preventDefault());
 })();
+
+// ── 클립보드 이미지 붙여넣기 (Cmd+V / Ctrl+V) ────────────────
+window.addEventListener('paste', e => {
+  const data = e.clipboardData || window.clipboardData;
+  if (!data) return;
+
+  const files = [];
+  // 1. Items 확인 (웹페이지 이미지 복사 등 포괄적)
+  if (data.items) {
+    for (let i = 0; i < data.items.length; i++) {
+      if (data.items[i].type.indexOf('image') !== -1) {
+        const file = data.items[i].getAsFile();
+        if (file) files.push(file);
+      }
+    }
+  } 
+  // 2. 만약 Items에서 못 찾았다면 Files 확인
+  if (files.length === 0 && data.files && data.files.length > 0) {
+    for (let i = 0; i < data.files.length; i++) {
+      if (data.files[i].type.startsWith('image/')) {
+        files.push(data.files[i]);
+      }
+    }
+  }
+
+  if (files.length > 0) {
+    // 이미지를 찾았다면 처리 함수 호출
+    addImageFiles(files);
+    console.log('클립보드에서 이미지 감지:', files.length, '장');
+  }
+});
 
 // ── 메시지 전송 ──────────────────────────────────────────
 function handleKeydown(e) {
