@@ -607,6 +607,9 @@
                 📷 <span id="imgBtnLabel">차트 추가</span>
               </button>
               <input type="file" id="imgInput" accept="image/*" multiple onchange="handleImageSelect(event)">
+              <button class="icon-btn" id="screenShareBtn" onclick="captureScreen()" title="화면/창/탭 캡처해서 첨부">
+                🖥️ <span>화면 공유</span>
+              </button>
               <select class="model-select" id="modelSelect" onchange="selectModel(this.value)" style="font-size:11px;padding:3px 6px;height:auto;">
                 <optgroup label="🤖 Claude">
                   <option value="claude-sonnet-4-6">Sonnet 4.6</option>
@@ -805,6 +808,49 @@ function handleImageSelect(e) {
   const files = Array.from(e.target.files);
   addImageFiles(files);
   e.target.value = '';
+}
+
+// ── 화면 캡처 → 이미지 첨부 ─────────────────────────────
+async function captureScreen() {
+  if (attachedImages.length >= MAX_IMAGES) {
+    showToast(`이미지는 최대 ${MAX_IMAGES}장까지 첨부할 수 있어요.`, 'error');
+    return;
+  }
+  if (!navigator.mediaDevices?.getDisplayMedia) {
+    showToast('이 브라우저는 화면 캡처를 지원하지 않아요.', 'error');
+    return;
+  }
+  const btn = document.getElementById('screenShareBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 선택 중...';
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { cursor: 'always' },
+      audio: false,
+    });
+    const track = stream.getVideoTracks()[0];
+    const capture = new ImageCapture(track);
+    const bitmap = await capture.grabFrame();
+    track.stop();
+
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    canvas.getContext('2d').drawImage(bitmap, 0, 0);
+    const dataUrl = canvas.toDataURL('image/png');
+    const b64 = dataUrl.split(',')[1];
+
+    attachedImages.push({ b64, mime: 'image/png', dataUrl });
+    renderImagePreviews();
+    showToast('화면 캡처 완료! 이미지가 첨부됐어요.', 'success');
+  } catch (e) {
+    if (e.name !== 'NotAllowedError') {
+      showToast('화면 캡처 실패: ' + e.message, 'error');
+    }
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '🖥️ <span>화면 공유</span>';
+  }
 }
 
 function addImageFiles(files) {
