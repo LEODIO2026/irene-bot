@@ -22,18 +22,9 @@ class NotionLogger:
         """노션 연동에 필요한 키와 DB ID가 모두 설정되어 있는지 확인합니다."""
         return bool(self.api_key and self.database_id)
 
-    def log_trade(self, symbol: str, side: str, entry_price: float, exit_price: float, pnl_pct: float, pnl_usdt: float, close_time_ms: int = None):
+    def log_trade(self, symbol: str, side: str, entry_price: float, exit_price: float, pnl_pct: float, pnl_usdt: float, strategy: str = "Manual", close_time_ms: int = None):
         """
         노션 데이터베이스에 1줄의 매매 기록을 추가합니다.
-        
-        요구되는 노션 데이터베이스 속성(Property) 이름 및 타입:
-        - Symbol (Title)
-        - Side (Select)
-        - Entry Price (Number)
-        - Exit Price (Number)
-        - PnL % (Number)
-        - PnL USDT (Number)
-        - Date (Date)
         """
         if not self.is_configured():
             return False
@@ -59,11 +50,20 @@ class NotionLogger:
             data = {
                 "parent": {"database_id": self.database_id},
                 "properties": {
+                    "Trade": {
+                        "title": [{"text": {"content": f"{dt_kst.strftime('%m-%d')} {side.upper()}"}}]
+                    },
                     "Symbol": {
-                        "title": [{"text": {"content": symbol}}]
+                        "select": {"name": symbol.replace("/USDT", "").replace(":USDT", "")}
                     },
                     "Side": {
                         "select": {"name": side.capitalize()}
+                    },
+                    "Result": {
+                        "select": {"name": "Profit" if pnl_usdt > 0 else "Loss"}
+                    },
+                    "Strategy": {
+                        "select": {"name": strategy}
                     },
                     "Entry Price": {
                         "number": round(float(entry_price), 4)

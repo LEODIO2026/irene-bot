@@ -606,6 +606,7 @@ class IreneAgent:
                                     exit_price=exit_price,
                                     pnl_pct=pnl_pct,
                                     pnl_usdt=pnl_usdt,
+                                    strategy="Auto",
                                     close_time_ms=rec['created_time']
                                 )
                             except Exception as ne:
