@@ -9,10 +9,9 @@ FROM python:3.11-slim
 # 작업 디렉토리
 WORKDIR /app
 
-# 시스템 패키지 최소 설치
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
+# 시스템 패키지 설치 생략 (시놀로지 seccomp 호환성 문제 대응)
+# 만약 추후 컴파일이 필요한 패키지가 추가되면 그때 다시 대응합니다.
+# RUN apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /var/lib/apt/lists/*
 
 # 의존성 먼저 복사 (레이어 캐싱 활용)
 COPY requirements.txt .
