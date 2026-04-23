@@ -321,6 +321,21 @@
   .icon-btn:hover { color: var(--text); background: rgba(255,255,255,.05); }
   .icon-btn span { font-size: 12px; }
   #imgInput { display: none; }
+  .stream-badges {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    padding: 4px 12px 0;
+  }
+  .stream-badge {
+    display: flex; align-items: center; gap: 5px;
+    background: rgba(129,140,248,.15); border: 1px solid rgba(129,140,248,.4);
+    color: var(--accent); border-radius: 20px;
+    padding: 3px 8px 3px 10px; font-size: 11px; font-weight: 600;
+  }
+  .stream-badge .badge-stop {
+    background: none; border: none; color: var(--muted);
+    cursor: pointer; font-size: 12px; padding: 0 2px; line-height: 1;
+  }
+  .stream-badge .badge-stop:hover { color: var(--sell); }
 
   .send-btn {
     background: var(--accent);
@@ -339,178 +354,93 @@
   .send-btn:active { transform: scale(.97); }
   .send-btn:disabled { background: var(--border); cursor: not-allowed; }
 
-  /* ── 오른쪽 제어 패널 ── */
-  .ctrl-panel {
-    width: 340px;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    background: var(--surface);
+  /* 헤더 심볼 버튼 */
+  .hdr-sym-group { display: flex; gap: 4px; }
+  .hdr-sym-btn {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--muted); padding: 4px 10px; border-radius: 6px;
+    cursor: pointer; font-size: 11px; font-weight: 700; transition: all .2s;
   }
-  .ctrl-panel::-webkit-scrollbar { width: 4px; }
-  .ctrl-panel::-webkit-scrollbar-thumb { background: var(--border); }
+  .hdr-sym-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .hdr-sym-btn.active { background: rgba(129,140,248,.15); border-color: var(--accent); color: var(--accent); }
 
-  .ctrl-section {
-    padding: 18px;
-    border-bottom: 1px solid var(--border);
+  /* 로그 토글 버튼 */
+  .log-toggle-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--muted); padding: 4px 10px; border-radius: 6px;
+    cursor: pointer; font-size: 11px; font-weight: 600; transition: all .2s; white-space: nowrap;
   }
-  .ctrl-section:last-child { border-bottom: none; }
-  .ctrl-label {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--muted);
-    margin-bottom: 12px;
-  }
+  .log-toggle-btn:hover, .log-toggle-btn.active { border-color: var(--accent); color: var(--accent); }
 
-  /* 심볼 선택 */
-  .symbol-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
+  /* ── 로그 패널 ── */
+  .log-panel {
+    width: 320px; flex-shrink: 0;
+    display: none; flex-direction: column;
+    background: var(--surface); border-left: 1px solid var(--border);
+    overflow: hidden;
   }
-  .sym-btn {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--muted);
-    padding: 7px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: 600;
-    text-align: center;
-    transition: all .2s;
+  .log-panel-header {
+    padding: 12px 14px; border-bottom: 1px solid var(--border);
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--muted); flex-shrink: 0;
   }
-  .sym-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .sym-btn.active { background: rgba(129,140,248,.15); border-color: var(--accent); color: var(--accent); }
+  .log-list-wrap {
+    flex: 1; overflow-y: auto; padding: 8px;
+  }
+  .log-list-wrap::-webkit-scrollbar { width: 3px; }
+  .log-list-wrap::-webkit-scrollbar-thumb { background: var(--border); }
+  .log-item {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px; margin-bottom: 6px;
+    cursor: pointer; transition: border-color .2s;
+  }
+  .log-item:hover, .log-item.active { border-color: var(--accent); }
+  .log-item-date { font-size: 10px; color: var(--muted); margin-bottom: 3px; }
+  .log-item-sym { font-size: 12px; font-weight: 700; color: var(--accent); }
+  .log-item-meta { font-size: 10px; color: var(--muted); margin-top: 2px; }
 
-  /* 방향 선택 */
-  .side-btns { display: flex; gap: 8px; }
-  .side-btn {
-    flex: 1;
-    padding: 10px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 700;
-    text-align: center;
-    transition: all .2s;
-    background: transparent;
-    color: var(--muted);
+  /* 로그 상세 모달 */
+  .log-detail-overlay {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,.65); align-items: center; justify-content: center;
   }
-  .side-btn.buy:hover, .side-btn.buy.active {
-    background: rgba(52,211,153,.15);
-    border-color: var(--buy);
-    color: var(--buy);
+  .log-detail-overlay.show { display: flex; }
+  .log-detail-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; width: 680px; max-width: 95vw;
+    max-height: 80vh; display: flex; flex-direction: column; overflow: hidden;
   }
-  .side-btn.sell:hover, .side-btn.sell.active {
-    background: rgba(248,113,113,.15);
-    border-color: var(--sell);
-    color: var(--sell);
+  .log-detail-head {
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
   }
-
-  /* SL/TP 입력 */
-  .sltp-grid { display: flex; flex-direction: column; gap: 10px; }
-  .sltp-row { display: flex; flex-direction: column; gap: 4px; }
-  .sltp-row label {
-    font-size: 11px;
-    color: var(--muted);
-    font-weight: 600;
-    letter-spacing: .5px;
+  .log-detail-info { font-size: 13px; }
+  .log-detail-info strong { color: var(--accent); }
+  .log-detail-close {
+    background: none; border: none; color: var(--muted);
+    font-size: 18px; cursor: pointer; padding: 0 4px; transition: color .2s;
   }
-  .sltp-row label span { font-size: 10px; margin-left: 4px; }
-  .sltp-input {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
-    padding: 9px 12px;
-    font-size: 14px;
-    font-family: 'JetBrains Mono', monospace;
-    outline: none;
-    width: 100%;
-    transition: border-color .2s;
+  .log-detail-close:hover { color: var(--text); }
+  .log-detail-msgs {
+    flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px;
   }
-  .sltp-input:focus { border-color: var(--accent); }
-  .sltp-input.sl-active { border-color: var(--sell); }
-  .sltp-input.tp-active { border-color: var(--buy); }
-
-  /* 현재 포지션 */
-  .pos-card {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 14px;
-    font-size: 13px;
+  .log-msg { display: flex; gap: 8px; max-width: 88%; }
+  .log-msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .log-msg.assistant { align-self: flex-start; }
+  .log-msg .avatar {
+    width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;
   }
-  .pos-card .pos-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
+  .log-msg.user .avatar { background: rgba(129,140,248,.2); color: var(--accent); }
+  .log-msg.assistant .avatar { background: rgba(167,139,250,.2); color: var(--accent2); }
+  .log-msg .bubble {
+    padding: 8px 12px; border-radius: 12px; line-height: 1.6;
+    white-space: pre-wrap; word-break: break-word; font-size: 12px;
   }
-  .pos-badge {
-    font-size: 11px;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 4px;
-  }
-  .pos-badge.long { background: rgba(52,211,153,.2); color: var(--buy); }
-  .pos-badge.short { background: rgba(248,113,113,.2); color: var(--sell); }
-  .pos-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 3px 0;
-    font-size: 12px;
-  }
-  .pos-row .key { color: var(--muted); }
-  .pos-row .val { font-weight: 600; font-family: monospace; }
-  .pos-pnl.pos { color: var(--buy); }
-  .pos-pnl.neg { color: var(--sell); }
-  .no-pos { color: var(--muted); font-size: 12px; text-align: center; padding: 8px 0; }
-
-  /* 실행 버튼 */
-  .exec-btn {
-    width: 100%;
-    padding: 13px;
-    border-radius: 10px;
-    border: none;
-    cursor: pointer;
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: .5px;
-    transition: all .2s;
-    margin-bottom: 8px;
-  }
-  .exec-btn.buy-btn {
-    background: linear-gradient(135deg, #059669, #34d399);
-    color: #fff;
-  }
-  .exec-btn.sell-btn {
-    background: linear-gradient(135deg, #dc2626, #f87171);
-    color: #fff;
-  }
-  .exec-btn:hover { opacity: .88; transform: translateY(-1px); }
-  .exec-btn:active { transform: translateY(0); }
-  .exec-btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
-
-  .close-btn {
-    width: 100%;
-    padding: 10px;
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    background: transparent;
-    color: var(--muted);
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 600;
-    transition: all .2s;
-  }
-  .close-btn:hover { border-color: var(--sell); color: var(--sell); background: rgba(248,113,113,.05); }
+  .log-msg.user .bubble { background: rgba(129,140,248,.1); border: 1px solid rgba(129,140,248,.2); }
+  .log-msg.assistant .bubble { background: var(--surface2); border: 1px solid var(--border); }
+  .log-msg .msg-ts { font-size: 9px; color: var(--muted); align-self: flex-end; flex-shrink: 0; }
+  .log-no-data { color: var(--muted); font-size: 12px; text-align: center; padding: 30px 0; }
 
   /* 리셋 버튼 */
   .reset-btn {
@@ -561,8 +491,14 @@
 <header>
   <a href="/dashboard">← 대시보드</a>
   <div class="header-title">아이린 트레이드 어시스턴트</div>
-  <div class="header-badge">코어 계정</div>
-  <a href="/chat-logs" style="font-size:12px;color:var(--muted);text-decoration:none;padding:4px 10px;border:1px solid var(--border);border-radius:6px;transition:color .2s,border-color .2s" onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">📋 로그 보기</a>
+  <div class="hdr-sym-group">
+    <button class="hdr-sym-btn active" data-sym="BTC/USDT" onclick="selectSymbol(this)">BTC</button>
+    <button class="hdr-sym-btn" data-sym="ETH/USDT" onclick="selectSymbol(this)">ETH</button>
+    <button class="hdr-sym-btn" data-sym="SOL/USDT" onclick="selectSymbol(this)">SOL</button>
+    <button class="hdr-sym-btn" data-sym="XRP/USDT" onclick="selectSymbol(this)">XRP</button>
+    <button class="hdr-sym-btn" data-sym="BNB/USDT" onclick="selectSymbol(this)">BNB</button>
+  </div>
+  <button class="log-toggle-btn" id="logToggleBtn" onclick="toggleLogPanel()">📋 로그</button>
   <button class="reset-btn" onclick="resetSession()">대화 초기화</button>
 </header>
 
@@ -597,6 +533,8 @@
         <div class="input-wrap" id="inputWrap">
           <!-- 드래그앤드롭 오버레이 -->
           <div class="drop-zone" id="dropZone">📷 차트 이미지를 여기에 놓으세요</div>
+          <!-- 활성 화면 공유 뱃지 -->
+          <div class="stream-badges" id="streamBadges"></div>
           <!-- 첨부 이미지 썸네일 -->
           <div class="img-attach-preview" id="imgPreviewBox"></div>
           <textarea id="chatInput" rows="1" placeholder="시장 분석 또는 차트 설명 입력... (Shift+Enter: 줄바꿈 / 이미지 붙여넣기·드래그 가능)"
@@ -607,19 +545,19 @@
                 📷 <span id="imgBtnLabel">차트 추가</span>
               </button>
               <input type="file" id="imgInput" accept="image/*" multiple onchange="handleImageSelect(event)">
-              <button class="icon-btn" id="screenShareBtn" onclick="captureScreen()" title="화면/창/탭 캡처해서 첨부">
-                🖥️ <span>화면 공유</span>
+              <button class="icon-btn" id="screenShareBtn" onclick="addScreenCapture()" title="화면/창/탭 추가 (다중 선택 가능)">
+                🖥️ <span>창 추가</span>
               </button>
               <select class="model-select" id="modelSelect" onchange="selectModel(this.value)" style="font-size:11px;padding:3px 6px;height:auto;">
                 <optgroup label="🤖 Claude">
-                  <option value="claude-opus-4-7">Opus 4.7 ★</option>
+                  <option value="claude-opus-4-7">Opus 4.7</option>
                   <option value="claude-sonnet-4-6">Sonnet 4.6</option>
                   <option value="claude-opus-4-6">Opus 4.6</option>
                   <option value="claude-haiku-4-5">Haiku 4.5</option>
                 </optgroup>
                 <optgroup label="✦ Gemini">
-                  <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro</option>
-                  <option value="gemini-3.1-flash-preview">Gemini 3 Flash</option>
+                  <option value="gemini-3.1-pro-preview" selected>Gemini 3.1 Pro ★</option>
+                  <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
                   <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Lite</option>
                   <option value="gemini-3-pro">Gemini 3.0 Pro</option>
                 </optgroup>
@@ -633,74 +571,30 @@
     </div>
   </div>
 
-  <!-- ── 제어 패널 ── -->
-  <div class="ctrl-panel">
-
-    <!-- 심볼 선택 -->
-    <div class="ctrl-section">
-      <div class="ctrl-label">심볼 선택</div>
-      <div class="symbol-grid" id="symbolGrid">
-        <button class="sym-btn active" data-sym="BTC/USDT" onclick="selectSymbol(this)">BTC</button>
-        <button class="sym-btn" data-sym="ETH/USDT" onclick="selectSymbol(this)">ETH</button>
-        <button class="sym-btn" data-sym="SOL/USDT" onclick="selectSymbol(this)">SOL</button>
-        <button class="sym-btn" data-sym="XRP/USDT" onclick="selectSymbol(this)">XRP</button>
-        <button class="sym-btn" data-sym="BNB/USDT" onclick="selectSymbol(this)">BNB</button>
-      </div>
+  <!-- ── 로그 패널 ── -->
+  <div class="log-panel" id="logPanel">
+    <div class="log-panel-header">채팅 로그</div>
+    <div class="log-list-wrap" id="logListWrap">
+      <div class="log-no-data">로그 없음</div>
     </div>
+  </div>
 
-    <!-- 포지션 현황 -->
-    <div class="ctrl-section">
-      <div class="ctrl-label" style="display:flex;justify-content:space-between">
-        <span>현재 포지션</span>
-        <span style="cursor:pointer;font-size:12px" onclick="refreshPosition()" title="새로고침">↻</span>
-      </div>
-      <div id="positionDisplay">
-        <div class="no-pos">포지션 없음</div>
-      </div>
+</div>
+
+<!-- 숨김 입력 (AI 제안 JS 호환용) -->
+<input type="hidden" id="slInput">
+<input type="hidden" id="tpInput">
+<span id="suggestionNote" style="display:none"></span>
+<div id="rrDisplay" style="display:none"><strong id="rrRatio"></strong></div>
+
+<!-- 로그 상세 모달 -->
+<div class="log-detail-overlay" id="logDetailOverlay" onclick="closeLogDetail(event)">
+  <div class="log-detail-box">
+    <div class="log-detail-head">
+      <div class="log-detail-info" id="logDetailInfo"></div>
+      <button class="log-detail-close" onclick="closeLogDetail()">✕</button>
     </div>
-
-    <!-- 방향 선택 -->
-    <div class="ctrl-section">
-      <div class="ctrl-label">진입 방향</div>
-      <div class="side-btns">
-        <button class="side-btn buy" id="btnBuy" onclick="selectSide('buy')">▲ 롱 (매수)</button>
-        <button class="side-btn sell" id="btnSell" onclick="selectSide('sell')">▼ 숏 (매도)</button>
-      </div>
-    </div>
-
-    <!-- SL/TP -->
-    <div class="ctrl-section">
-      <div class="ctrl-label" style="display:flex;justify-content:space-between">
-        <span>손절 / 익절 설정</span>
-        <span style="font-size:10px;color:var(--accent);cursor:default" id="suggestionNote"></span>
-      </div>
-      <div class="sltp-grid">
-        <div class="sltp-row">
-          <label>손절 (SL) <span style="color:var(--sell)">▼</span></label>
-          <input type="number" class="sltp-input" id="slInput" placeholder="0.00" step="any">
-        </div>
-        <div class="sltp-row">
-          <label>익절 (TP) <span style="color:var(--buy)">▲</span></label>
-          <input type="number" class="sltp-input" id="tpInput" placeholder="0.00" step="any">
-        </div>
-        <div class="sltp-row" id="rrDisplay" style="display:none">
-          <div style="font-size:12px;color:var(--muted);text-align:center;padding:4px">
-            RR 비율: <strong id="rrRatio" style="color:var(--accent)">—</strong>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 실행 버튼 -->
-    <div class="ctrl-section">
-      <button class="exec-btn buy-btn" id="execBtn" onclick="executeTrade()" disabled>
-        거래 실행 (코어 계정)
-      </button>
-      <button class="close-btn" id="closeBtn" onclick="closePosition()" style="display:none">
-        포지션 청산
-      </button>
-    </div>
-
+    <div class="log-detail-msgs" id="logDetailMsgs"></div>
   </div>
 </div>
 
@@ -714,7 +608,7 @@ let selectedSymbol = 'BTC/USDT';
 let selectedSide = null;
 let attachedImages = [];   // [{ b64, mime, dataUrl }, ...]  최대 5장
 let hasPosition = false;
-let selectedModel = 'claude-sonnet-4-6';
+let selectedModel = 'gemini-3.1-pro-preview';
 const MAX_IMAGES = 5;
 let lastPayload = null;    // 마지막 전송 페이로드 (재시도용)
 let lastKnownPrice = 0;    // 마지막으로 수신한 현재가 (SL→TP 1:3 계산용)
@@ -728,81 +622,17 @@ function selectModel(modelId) {
 
 // ── 심볼 선택 ───────────────────────────────────────────
 function selectSymbol(btn) {
-  document.querySelectorAll('.sym-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.hdr-sym-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   selectedSymbol = btn.dataset.sym;
   document.getElementById('selectedSymbolLabel').textContent = selectedSymbol;
-  
-  // 제안된 데이터가 있는지 확인
-  checkPendingProposal(selectedSymbol);
-  
-  refreshPosition();
 }
 
-function checkPendingProposal(symbol) {
-  fetch('/api/status')
-    .then(r => r.json())
-    .then(data => {
-      const proposals = data.pending_proposals || {};
-      const prop = proposals[symbol];
-      if (prop) {
-        // 제안된 정보가 있으면 UI에 주입
-        showToast(`아이린의 ${symbol} 제안을 불러왔어요!`, 'success');
-        selectSide(prop.side);
-        document.getElementById('slInput').value = prop.sl;
-        document.getElementById('tpInput').value = prop.tp;
-        
-        // 채팅창에도 안내 메시지 추가 (중복 방지용 체크 필요할 수 있음)
-        const note = document.getElementById('suggestionNote');
-        if (note) note.textContent = `아이린의 추천 타점 (시간: ${prop.time_str})`;
-        
-        updateRR();
-      }
-    });
-}
 
-// ── 방향 선택 ────────────────────────────────────────────
-function selectSide(side) {
-  selectedSide = side;
-  document.getElementById('btnBuy').classList.toggle('active', side === 'buy');
-  document.getElementById('btnSell').classList.toggle('active', side === 'sell');
-  updateExecBtn();
-}
-
-// ── SL/TP 입력 → RR 표시 ─────────────────────────────────
-document.getElementById('slInput').addEventListener('input', updateRR);
-document.getElementById('tpInput').addEventListener('input', updateRR);
-
-function updateRR() {
-  const sl = parseFloat(document.getElementById('slInput').value);
-  const tp = parseFloat(document.getElementById('tpInput').value);
-  if (sl && tp && lastKnownPrice) {
-    const risk = Math.abs(lastKnownPrice - sl);
-    const reward = Math.abs(tp - lastKnownPrice);
-    document.getElementById('rrDisplay').style.display = 'block';
-    const rr = risk > 0 ? (reward / risk).toFixed(2) : '—';
-    document.getElementById('rrRatio').textContent = `1 : ${rr}`;
-  } else if (sl && tp) {
-    document.getElementById('rrDisplay').style.display = 'block';
-    document.getElementById('rrRatio').textContent = `설정됨 ✓`;
-  }
-  updateExecBtn();
-}
-
-function updateExecBtn() {
-  const sl = document.getElementById('slInput').value;
-  const tp = document.getElementById('tpInput').value;
-  const btn = document.getElementById('execBtn');
-  const ok = sl && tp && selectedSide;
-  btn.disabled = !ok;
-  if (selectedSide === 'buy') {
-    btn.textContent = ok ? `▲ 롱 진입 실행 (${selectedSymbol})` : '거래 실행 (코어 계정)';
-    btn.className = 'exec-btn buy-btn';
-  } else if (selectedSide === 'sell') {
-    btn.textContent = ok ? `▼ 숏 진입 실행 (${selectedSymbol})` : '거래 실행 (코어 계정)';
-    btn.className = 'exec-btn sell-btn';
-  }
-}
+// ── 방향 선택 (호환 유지용 no-op) ───────────────────────────
+function selectSide(side) { selectedSide = side; }
+function updateRR() {}
+function updateExecBtn() {}
 
 // ── 이미지 처리 ──────────────────────────────────────────
 function handleImageSelect(e) {
@@ -811,47 +641,81 @@ function handleImageSelect(e) {
   e.target.value = '';
 }
 
-// ── 화면 캡처 → 이미지 첨부 ─────────────────────────────
-async function captureScreen() {
-  if (attachedImages.length >= MAX_IMAGES) {
-    showToast(`이미지는 최대 ${MAX_IMAGES}장까지 첨부할 수 있어요.`, 'error');
-    return;
-  }
+// ── 화면 공유 (다중 창 모드) ─────────────────────────────
+// 창마다 독립 스트림 유지 → 전송 시 모든 창에서 자동 캡처
+let screenStreams = [];  // [{ id, stream, capture, label }, ...]
+
+async function addScreenCapture() {
   if (!navigator.mediaDevices?.getDisplayMedia) {
     showToast('이 브라우저는 화면 캡처를 지원하지 않아요.', 'error');
     return;
   }
+  if (screenStreams.length >= 3) {
+    showToast('창은 최대 3개까지 동시에 공유할 수 있어요.', 'error');
+    return;
+  }
+
   const btn = document.getElementById('screenShareBtn');
   btn.disabled = true;
-  btn.textContent = '⏳ 선택 중...';
+  btn.innerHTML = '⏳ <span>선택 중...</span>';
   try {
     const stream = await navigator.mediaDevices.getDisplayMedia({
-      video: { cursor: 'always' },
-      audio: false,
+      video: { cursor: 'always' }, audio: false,
     });
     const track = stream.getVideoTracks()[0];
     const capture = new ImageCapture(track);
-    const bitmap = await capture.grabFrame();
-    track.stop();
+    const id = Date.now();
+    const label = track.label || `창 ${screenStreams.length + 1}`;
 
-    const canvas = document.createElement('canvas');
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
-    canvas.getContext('2d').drawImage(bitmap, 0, 0);
-    const dataUrl = canvas.toDataURL('image/png');
-    const b64 = dataUrl.split(',')[1];
+    const entry = { id, stream, capture, label };
+    screenStreams.push(entry);
+    track.addEventListener('ended', () => removeScreenCapture(id));
 
-    attachedImages.push({ b64, mime: 'image/png', dataUrl });
-    renderImagePreviews();
-    showToast('화면 캡처 완료! 이미지가 첨부됐어요.', 'success');
+    renderStreamBadges();
+    showToast(`"${label.slice(0, 20)}" 공유 시작!`, 'success');
   } catch (e) {
     if (e.name !== 'NotAllowedError') {
       showToast('화면 캡처 실패: ' + e.message, 'error');
     }
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '🖥️ <span>화면 공유</span>';
+    btn.innerHTML = '🖥️ <span>창 추가</span>';
   }
+}
+
+function removeScreenCapture(id) {
+  const idx = screenStreams.findIndex(s => s.id === id);
+  if (idx === -1) return;
+  screenStreams[idx].stream.getTracks().forEach(t => t.stop());
+  screenStreams.splice(idx, 1);
+  renderStreamBadges();
+}
+
+function renderStreamBadges() {
+  const box = document.getElementById('streamBadges');
+  box.innerHTML = screenStreams.map(s => `
+    <div class="stream-badge">
+      🖥️ ${s.label.slice(0, 24)}
+      <button class="badge-stop" onclick="removeScreenCapture(${s.id})" title="이 창 공유 종료">✕</button>
+    </div>
+  `).join('');
+}
+
+async function grabScreenFrames() {
+  const frames = [];
+  for (const entry of [...screenStreams]) {
+    try {
+      const bitmap = await entry.capture.grabFrame();
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width; canvas.height = bitmap.height;
+      canvas.getContext('2d').drawImage(bitmap, 0, 0);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      frames.push({ b64: dataUrl.split(',')[1], mime: 'image/jpeg', dataUrl });
+    } catch (e) {
+      removeScreenCapture(entry.id);
+    }
+  }
+  return frames;
 }
 
 function addImageFiles(files) {
@@ -989,8 +853,17 @@ async function sendMessage(retryPayload) {
     body = retryPayload;
   } else {
     const text = input.value.trim();
-    if (!text && attachedImages.length === 0) return;
+    if (!text && attachedImages.length === 0 && screenStreams.length === 0) return;
     sendBtn.disabled = true;
+
+    // 공유 중인 모든 창에서 프레임 자동 캡처
+    if (screenStreams.length > 0 && attachedImages.length < MAX_IMAGES) {
+      const frames = await grabScreenFrames();
+      for (const frame of frames) {
+        if (attachedImages.length >= MAX_IMAGES) break;
+        attachedImages.push(frame);
+      }
+    }
 
     // 유저 메시지 버블 추가
     const previewUrls = attachedImages.map(i => i.dataUrl);
@@ -1016,15 +889,15 @@ async function sendMessage(retryPayload) {
   const typingId = addTyping();
 
   try {
+    // 1단계: 작업 제출 (즉시 job_id 반환)
     const res = await fetch('/api/trade-chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
 
-    removeTyping(typingId);
-
     if (!res.ok) {
+      removeTyping(typingId);
       let errMsg = `서버 오류 (HTTP ${res.status})`;
       try {
         const ct = res.headers.get('content-type') || '';
@@ -1034,7 +907,6 @@ async function sendMessage(retryPayload) {
           else errMsg = e.error || errMsg;
         } else {
           const txt = await res.text();
-          // HTML 에러 페이지에서 핵심 메시지만 추출
           const match = txt.match(/<title>(.*?)<\/title>/i) || txt.match(/Error:(.*?)[\n<]/);
           errMsg = `HTTP ${res.status} — ${match ? match[1].trim() : '서버 응답 오류'}`;
         }
@@ -1043,33 +915,56 @@ async function sendMessage(retryPayload) {
       return;
     }
 
-    const data = await res.json();
-    addMessage('assistant', data.reply, null, data.model);
+    const submitted = await res.json();
+    const jobId = submitted.job_id;
+    if (!jobId) {
+      removeTyping(typingId);
+      addErrorMessage('작업 ID를 받지 못했습니다.');
+      return;
+    }
 
-    // 현재가 저장
-    if (data.market && data.market.price) lastKnownPrice = data.market.price;
+    // 2단계: 결과 폴링 (2초 간격, 최대 5분)
+    const startTime = Date.now();
+    const MAX_WAIT_MS = 300_000;
+    while (Date.now() - startTime < MAX_WAIT_MS) {
+      await new Promise(r => setTimeout(r, 2000));
+      let pollRes;
+      try {
+        pollRes = await fetch(`/api/trade-chat/${jobId}`);
+      } catch (netErr) {
+        removeTyping(typingId);
+        addErrorMessage('연결 오류: ' + netErr.message);
+        return;
+      }
 
-    if (data.suggestion) {
-      const s = data.suggestion;
-      // 방향 자동 세팅
-      if (s.side) selectSide(s.side);
-      // SL 자동 세팅
-      if (s.sl) {
-        document.getElementById('slInput').value = s.sl;
-        document.getElementById('slInput').classList.add('sl-active');
-        setTimeout(() => document.getElementById('slInput').classList.remove('sl-active'), 2000);
+      const pollData = await pollRes.json();
+
+      if (pollData.status === 'pending') continue;
+
+      removeTyping(typingId);
+
+      if (pollData.status === 'error') {
+        if (pollData.need_api_key) addErrorMessage('ANTHROPIC_API_KEY가 설정되지 않았습니다.');
+        else addErrorMessage(pollData.error || '알 수 없는 오류');
+        return;
       }
-      // TP 자동 세팅 (서버에서 1:3 계산된 값)
-      if (s.tp) {
-        document.getElementById('tpInput').value = s.tp;
-        document.getElementById('tpInput').classList.add('tp-active');
-        setTimeout(() => document.getElementById('tpInput').classList.remove('tp-active'), 2000);
-      }
-      if (s.sl || s.tp) {
-        document.getElementById('suggestionNote').textContent = '✦ AI 자동 설정 (1:3)';
-        updateRR();
+
+      if (pollData.status === 'done') {
+        addMessage('assistant', pollData.reply, null, pollData.model);
+        if (pollData.market && pollData.market.price) lastKnownPrice = pollData.market.price;
+        if (pollData.suggestion) {
+          const s = pollData.suggestion;
+          if (s.side) selectSide(s.side);
+          if (s.sl) document.getElementById('slInput').value = s.sl;
+          if (s.tp) document.getElementById('tpInput').value = s.tp;
+        }
+        return;
       }
     }
+
+    // 타임아웃
+    removeTyping(typingId);
+    addErrorMessage('응답 시간 초과 (5분). 다시 시도해 주세요.');
 
   } catch (err) {
     removeTyping(typingId);
@@ -1179,123 +1074,8 @@ function removeTyping(id) {
   if (el) el.remove();
 }
 
-// ── 거래 실행 ────────────────────────────────────────────
-async function executeTrade() {
-  const sl = parseFloat(document.getElementById('slInput').value);
-  const tp = parseFloat(document.getElementById('tpInput').value);
-  if (!sl || !tp || !selectedSide) { showToast('SL, TP, 방향을 모두 설정해 주세요.', 'error'); return; }
-
-  const confirmed = confirm(
-    `[거래 확인]\n\n` +
-    `심볼: ${selectedSymbol}\n` +
-    `방향: ${selectedSide === 'buy' ? '▲ 롱 (매수)' : '▼ 숏 (매도)'}\n` +
-    `SL: ${sl}\n` +
-    `TP: ${tp}\n\n` +
-    `코어 계정으로 실제 주문을 실행합니다. 계속하시겠습니까?`
-  );
-  if (!confirmed) return;
-
-  document.getElementById('execBtn').disabled = true;
-  document.getElementById('execBtn').textContent = '주문 중...';
-
-  try {
-    const res = await fetch('/api/trade-execute', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        passphrase: PASSPHRASE,
-        symbol: selectedSymbol,
-        side: selectedSide,
-        sl, tp,
-        session_id: SESSION_ID,
-      }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast('✅ 진입 완료!', 'success');
-      addMessage('assistant', data.message);
-      setTimeout(refreshPosition, 2000);
-    } else {
-      showToast('❌ ' + data.message, 'error');
-    }
-  } catch (err) {
-    showToast('연결 오류: ' + err.message, 'error');
-  } finally {
-    updateExecBtn();
-  }
-}
-
-// ── 포지션 청산 ──────────────────────────────────────────
-async function closePosition() {
-  const confirmed = confirm(`${selectedSymbol} 포지션을 청산하시겠습니까?`);
-  if (!confirmed) return;
-
-  try {
-    const res = await fetch('/api/trade-close', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ passphrase: PASSPHRASE, symbol: selectedSymbol, session_id: SESSION_ID }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast('✅ 청산 완료!', 'success');
-      addMessage('assistant', data.message);
-      setTimeout(refreshPosition, 2000);
-    } else {
-      showToast('❌ ' + data.message, 'error');
-    }
-  } catch (err) {
-    showToast('연결 오류: ' + err.message, 'error');
-  }
-}
-
-// ── 포지션 새로고침 ───────────────────────────────────────
-async function refreshPosition() {
-  try {
-    const res = await fetch(`/api/trade-position?symbol=${encodeURIComponent(selectedSymbol)}`);
-    const data = await res.json();
-    const pos = data.position;
-    const box = document.getElementById('positionDisplay');
-    const closeBtn = document.getElementById('closeBtn');
-
-    if (!pos) {
-      box.innerHTML = '<div class="no-pos">포지션 없음</div>';
-      closeBtn.style.display = 'none';
-      hasPosition = false;
-      return;
-    }
-
-    hasPosition = true;
-    closeBtn.style.display = 'block';
-
-    const side = pos.side.toLowerCase();
-    const pnl = pos.unrealized_pnl;
-    const pnlClass = pnl >= 0 ? 'pos' : 'neg';
-    const pnlSign = pnl >= 0 ? '+' : '';
-    const price = pos.current_price || 0;
-
-    box.innerHTML = `
-      <div class="pos-card">
-        <div class="pos-header">
-          <strong style="font-size:13px">${selectedSymbol}</strong>
-          <span class="pos-badge ${side === 'long' ? 'long' : 'short'}">${side === 'long' ? '▲ 롱' : '▼ 숏'}</span>
-        </div>
-        <div class="pos-row"><span class="key">진입가</span><span class="val">${pos.entry_price.toLocaleString()}</span></div>
-        <div class="pos-row"><span class="key">현재가</span><span class="val">${price ? price.toLocaleString() : '-'}</span></div>
-        <div class="pos-row"><span class="key">수량</span><span class="val">${pos.size}</span></div>
-        <div class="pos-row"><span class="key">레버리지</span><span class="val">${pos.leverage}x</span></div>
-        <div class="pos-row"><span class="key">미실현 손익</span>
-          <span class="val pos-pnl ${pnlClass}">${pnlSign}${pnl.toFixed(2)} USDT</span>
-        </div>
-        <div class="pos-row"><span class="key">수익률</span>
-          <span class="val pos-pnl ${pnlClass}">${pnlSign}${pos.percentage.toFixed(2)}%</span>
-        </div>
-      </div>
-    `;
-  } catch (err) {
-    // 조용히 무시
-  }
-}
+// ── 포지션 새로고침 (패널 제거됨 — no-op) ────────────────
+async function refreshPosition() {}
 
 // ── 세션 초기화 ──────────────────────────────────────────
 async function resetSession() {
@@ -1320,9 +1100,80 @@ function showToast(msg, type) {
   toastTimer = setTimeout(() => { t.className = ''; }, 3500);
 }
 
-// ── 초기화 ───────────────────────────────────────────────
-refreshPosition();
-setInterval(refreshPosition, 15000);  // 15초마다 포지션 갱신
+// ── 로그 패널 ────────────────────────────────────────────
+let logPanelOpen = false;
+
+function toggleLogPanel() {
+  logPanelOpen = !logPanelOpen;
+  const panel = document.getElementById('logPanel');
+  const btn = document.getElementById('logToggleBtn');
+  panel.style.display = logPanelOpen ? 'flex' : 'none';
+  btn.classList.toggle('active', logPanelOpen);
+  if (logPanelOpen) loadLogList();
+}
+
+async function loadLogList() {
+  const wrap = document.getElementById('logListWrap');
+  wrap.innerHTML = '<div class="log-no-data">로딩 중...</div>';
+  try {
+    const res = await fetch('/api/chat-logs');
+    const data = await res.json();
+    const logs = Array.isArray(data) ? data : (data.logs || []);
+    if (!logs.length) {
+      wrap.innerHTML = '<div class="log-no-data">로그 없음</div>';
+      return;
+    }
+    wrap.innerHTML = logs.map((l, i) => `
+      <div class="log-item" onclick="loadLogDetail('${l.session_id}', this)">
+        <div class="log-item-date">${l.started_at || ''}</div>
+        <div class="log-item-sym">${l.symbol || '—'}</div>
+        <div class="log-item-meta">${l.message_count || 0}개 메시지 · ${l.model || ''}</div>
+      </div>
+    `).join('');
+  } catch (e) {
+    wrap.innerHTML = '<div class="log-no-data">로드 실패</div>';
+  }
+}
+
+async function loadLogDetail(sessionId, item) {
+  document.querySelectorAll('.log-item').forEach(el => el.classList.remove('active'));
+  if (item) item.classList.add('active');
+
+  const overlay = document.getElementById('logDetailOverlay');
+  const msgs = document.getElementById('logDetailMsgs');
+  const info = document.getElementById('logDetailInfo');
+  overlay.classList.add('show');
+  msgs.innerHTML = '<div style="color:var(--muted);text-align:center;padding:30px">로딩 중...</div>';
+
+  try {
+    const res = await fetch(`/api/chat-logs/${encodeURIComponent(sessionId)}`);
+    const data = await res.json();
+    info.innerHTML = `<strong>${data.symbol || sessionId}</strong>  <span style="color:var(--muted);font-size:11px">${data.started_at || ''}</span>`;
+    const history = data.messages || [];
+    if (!history.length) {
+      msgs.innerHTML = '<div style="color:var(--muted);text-align:center;padding:30px">메시지 없음</div>';
+      return;
+    }
+    msgs.innerHTML = history.map(m => {
+      const txt = (m.text || m.content || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const ts = m.ts || m.timestamp || '';
+      const imgNote = m.images ? `<div style="font-size:10px;color:var(--muted)">[이미지 ${m.images}장]</div>` : '';
+      return `<div class="log-msg ${m.role}">
+        <div class="avatar">${m.role === 'user' ? '나' : '아'}</div>
+        <div class="bubble">${imgNote}${txt}</div>
+        ${ts ? `<div class="msg-ts">${ts}</div>` : ''}
+      </div>`;
+    }).join('');
+    msgs.scrollTop = msgs.scrollHeight;
+  } catch (e) {
+    msgs.innerHTML = '<div style="color:var(--muted);text-align:center;padding:30px">로드 실패</div>';
+  }
+}
+
+function closeLogDetail(e) {
+  if (e && e.target !== document.getElementById('logDetailOverlay')) return;
+  document.getElementById('logDetailOverlay').classList.remove('show');
+}
 </script>
 </body>
 </html>

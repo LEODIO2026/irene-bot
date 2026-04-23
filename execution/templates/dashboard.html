@@ -193,6 +193,19 @@ body::before {
 .sym-card.expanded .detail-collapse { max-height:300px; }
 .reason-item { font-size:.68em; color:var(--sub); padding:4px 8px; border-radius:6px; background:rgba(0,0,0,.2); margin-top:4px; border-left:2px solid rgba(129,140,248,.3); }
 
+/* ── 경제 캘린더 ── */
+.econ-panel { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:14px 18px; margin-top:16px; }
+.econ-table { width:100%; border-collapse:separate; border-spacing:0 5px; font-size:.8em; }
+.econ-table th { color:var(--muted); padding:3px 10px 8px; text-align:left; font-size:.68em; text-transform:uppercase; border-bottom:1px solid var(--border); }
+.econ-table td { padding:8px 10px; background:rgba(0,0,0,.18); }
+.econ-table tr td:first-child { border-radius:8px 0 0 8px; }
+.econ-table tr td:last-child  { border-radius:0 8px 8px 0; }
+.econ-table tr.released td { opacity:.7; }
+.econ-beat  { color:#34d399; font-weight:700; }
+.econ-miss  { color:#f87171; font-weight:700; }
+.econ-pend  { color:#fbbf24; }
+.econ-flag  { font-size:.9em; margin-right:3px; }
+
 /* ── 거래 로그 ── */
 .log-panel { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:14px 18px; margin-top:16px; }
 .log-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px; }
@@ -317,6 +330,15 @@ tr td:last-child  { border-radius:0 8px 8px 0; }
 </div>
 
 <!-- ── 계정 현황 ── -->
+<!-- 경제 캘린더 -->
+<div class="econ-panel" id="econPanel">
+  <div class="panel-title">
+    <span>⭐⭐⭐ 오늘의 주요 경제 지표</span>
+    <span id="econDate" style="color:var(--muted);font-size:.9em;"></span>
+  </div>
+  <div id="econBody"><div class="pos-empty">불러오는 중...</div></div>
+</div>
+
 <div class="accounts">
   <!-- 코어 -->
   <div class="account-card ac-core">
@@ -872,6 +894,61 @@ async function loadBTResults() {
 
 setInterval(update, 5000);
 update();
+
+// ── 경제 캘린더 ──────────────────────────────────────────
+const CURRENCY_FLAG = { USD:'🇺🇸', EUR:'🇪🇺', GBP:'🇬🇧', JPY:'🇯🇵', CAD:'🇨🇦', AUD:'🇦🇺', NZD:'🇳🇿', CHF:'🇨🇭', CNY:'🇨🇳' };
+
+async function loadEconCalendar() {
+  try {
+    const r = await fetch('/api/economic-calendar');
+    const d = await r.json();
+    const body = document.getElementById('econBody');
+    const events = d.events || [];
+
+    if (d.date) document.getElementById('econDate').textContent = d.date + ' KST';
+
+    if (!events.length) {
+      body.innerHTML = '<div class="pos-empty">오늘 예정된 ★★★ 지표 없음</div>';
+      return;
+    }
+
+    let html = `<table class="econ-table">
+      <thead><tr>
+        <th>시간(KST)</th><th>통화</th><th>이벤트</th>
+        <th style="text-align:right">예상</th>
+        <th style="text-align:right">이전</th>
+        <th style="text-align:right">실제</th>
+      </tr></thead><tbody>`;
+
+    for (const ev of events) {
+      const flag = CURRENCY_FLAG[ev.currency] || '';
+      const rowCls = ev.released ? 'released' : '';
+      let actualHtml = '<span style="color:var(--muted)">-</span>';
+      if (ev.actual) {
+        const cls = ev.beat === true ? 'econ-beat' : ev.beat === false ? 'econ-miss' : '';
+        const icon = ev.beat === true ? ' ▲' : ev.beat === false ? ' ▼' : '';
+        actualHtml = `<span class="${cls}">${ev.actual}${icon}</span>`;
+      } else {
+        actualHtml = `<span class="econ-pend">대기중</span>`;
+      }
+      html += `<tr class="${rowCls}">
+        <td style="font-weight:700;color:var(--text)">${ev.time_kst}</td>
+        <td>${flag} ${ev.currency}</td>
+        <td style="max-width:220px">${ev.event}</td>
+        <td style="text-align:right;color:var(--muted)">${ev.forecast || '-'}</td>
+        <td style="text-align:right;color:var(--muted)">${ev.previous || '-'}</td>
+        <td style="text-align:right">${actualHtml}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    body.innerHTML = html;
+  } catch(e) {
+    document.getElementById('econBody').innerHTML = '<div class="pos-empty">캘린더 로드 실패</div>';
+  }
+}
+
+loadEconCalendar();
+setInterval(loadEconCalendar, 5 * 60 * 1000);  // 5분마다 갱신
 </script>
 </body>
 </html>

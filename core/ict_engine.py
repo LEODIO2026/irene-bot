@@ -172,11 +172,13 @@ class ICTEngine:
             return {'direction': 'neutral', 'last_event': None, 'level': None, 'reason': '피벗 부족'}
 
         # ── 상태 머신: 스윙 레벨 돌파 여부 순차 추적 ──
-        direction  = 'neutral'
-        last_event = None
-        last_level = None
+        direction   = 'neutral'
+        last_event  = None
+        last_level  = None
+        last_ts     = None
 
         ph_ptr = pl_ptr = 0
+        timestamps = df['timestamp'].values
 
         for i in range(w, len(df)):
             # 이 캔들 이전의 가장 최신 스윙 포인트로 포인터 이동
@@ -198,17 +200,19 @@ class ICTEngine:
                 direction  = 'bullish'
                 last_event = 'BOS'
                 last_level = last_sh
+                last_ts    = timestamps[i]
 
             # MSS Bearish: 종가가 스윙 로우 이탈 (몸통 조건 — 음봉 필요)
             elif close_i < last_sl and close_i < open_i and body >= avg_body * 0.8:
                 direction  = 'bearish'
                 last_event = 'MSS'
                 last_level = last_sl
+                last_ts    = timestamps[i]
 
         reason = (f'{last_event} @ {last_level:.2f}' if last_event and last_level
                   else '구조 미확정')
         return {'direction': direction, 'last_event': last_event,
-                'level': last_level, 'reason': reason}
+                'level': last_level, 'timestamp': last_ts, 'reason': reason}
 
     # ═══════════════════════════════════════════════════
     #  시장 구조 분석: 스윙 구조 + ADX

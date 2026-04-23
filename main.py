@@ -92,6 +92,11 @@ class IreneAgent:
         # 텔레그램 알림 및 대화 리스너
         self.notifier = TelegramNotifier(agent_instance=self)
         self._start_telegram_bot()
+
+        # 노션 자동 매매 일지 로거
+        from execution.notion_logger import NotionLogger
+        self.notion_logger = NotionLogger()
+
         # 개별 코인용 상태
         self.symbol_status = {
             sym: {
@@ -579,6 +584,33 @@ class IreneAgent:
                             entry['pnl']        = rec['pnl']
                             entry['exit_price'] = rec['exit_price']
                             self._save_trade_log()
+                            
+                            # ── 노션 자동 매매 일지 기록 ──
+                            try:
+                                entry_price = float(entry.get('price', 0))
+                                exit_price = float(rec['exit_price'])
+                                pnl_usdt = float(rec['pnl'])
+                                side = entry.get('side', 'Unknown')
+                                
+                                pnl_pct = 0.0
+                                if entry_price > 0:
+                                    if side.lower() == 'buy':
+                                        pnl_pct = ((exit_price - entry_price) / entry_price) * 100
+                                    else:
+                                        pnl_pct = ((entry_price - exit_price) / entry_price) * 100
+                                        
+                                self.notion_logger.log_trade(
+                                    symbol=entry['symbol'],
+                                    side=side,
+                                    entry_price=entry_price,
+                                    exit_price=exit_price,
+                                    pnl_pct=pnl_pct,
+                                    pnl_usdt=pnl_usdt,
+                                    close_time_ms=rec['created_time']
+                                )
+                            except Exception as ne:
+                                print(f"⚠️ 아이린: 노션 로깅 중 내부 예외: {ne}")
+                                
                             break
             except Exception as e:
                 print(f"아이린: PnL 모니터 오류: {e}")
