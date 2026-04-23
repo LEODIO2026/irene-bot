@@ -8,8 +8,13 @@ services:
       dockerfile: Dockerfile
     image: irene-trading-agent:latest
     container_name: irene_agent
-    # 빌드 오류 우회를 위해 즉시 실행 (의존성은 이미 설치된 것으로 간주)
-    command: python3 -u main.py
+    # 시놀로지 NAS 보안 정책(seccomp) 우회 설정
+    security_opt:
+      - seccomp:unconfined
+    
+    # 빌드 오류 우회를 위해 시작 시 모든 의존성 설치
+    command: >
+      sh -c "pip install --no-cache-dir -r requirements.txt && python3 -u main.py"
 
     # ── 재시작 정책 (NAS 재부팅 후 자동 복구) ──────
     restart: unless-stopped
