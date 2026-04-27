@@ -22,10 +22,14 @@ class TelegramBot:
         self._loop = None
         # 기본 모델 설정 (Claude 4.6 Sonnet)
         self.current_model = 'claude-sonnet-4-6'
-        
+
         if not self.token:
             print("⚠️ TELEGRAM_BOT_TOKEN이 설정되지 않았습니다.")
             return
+
+        # App은 __init__에서 동기 빌드 (이벤트 루프 불필요)
+        self.app = ApplicationBuilder().token(self.token).build()
+        self._setup_handlers()
 
     def _setup_handlers(self):
         self.app.add_handler(CommandHandler("start", self._start_command))
@@ -201,17 +205,83 @@ class TelegramBot:
     # ── 실행 루프 ─────────────────────────────────────────────
 
     def run_polling(self):
-        """별도 스레드에서 실행"""
-        self._loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self._loop)
-        
-        # PTB Application 구축 (현재 스레드의 루프 안에서)
+        """별도 스레드에서 실행 — raw urllib 폴링 + asyncio 루프 상시 가동"""
+        import urllib.request as _ur
+        import json as _json
         print("🚀 아이린 텔레그램 봇 초기화 중...")
-        self.app = ApplicationBuilder().token(self.token).build()
-        self._setup_handlers()
-        
-        print("🚀 아이린 텔레그램 봇 리스너 가동...")
-        self.app.run_polling(close_loop=False, stop_signals=False)
+
+        # 웹훅 제거
+        try:
+            resp = _ur.urlopen(
+                f'https://api.telegram.org/bot{self.token}/deleteWebhook',
+                timeout=10
+            )
+            resp.read(); resp.close()
+        except Exception:
+            pass
+
+        # asyncio 루프를 별도 스레드에서 run_forever()로 상시 가동
+        self._loop = asyncio.new_event_loop()
+
+        def _run_loop():
+            asyncio.set_event_loop(self._loop)
+            self._loop.run_forever()
+
+        loop_thread = threading.Thread(target=_run_loop, daemon=True)
+        loop_thread.start()
+
+        # 루프가 뜰 때까지 잠깐 대기 후 PTB App 초기화
+        time.sleep(0.5)
+
+        async def _init_app():
+            await self.app.initialize()
+            await self.app.start()
+
+        fut = asyncio.run_coroutine_threadsafe(_init_app(), self._loop)
+        fut.result(timeout=30)  # 초기화 완료까지 대기
+
+        print("🚀 아이린 텔레그램 봇 리스너 가동 (raw polling)...")
+
+        offset = 0
+        conflict_count = 0
+        retry_delay = 5
+        while True:
+            try:
+                url = (f'https://api.telegram.org/bot{self.token}/getUpdates'
+                       f'?offset={offset}&timeout=30&limit=100&allowed_updates=message,callback_query')
+                resp = _ur.urlopen(url, timeout=35)
+                data = _json.loads(resp.read())
+                resp.close()
+
+                if data.get('ok'):
+                    conflict_count = 0
+                    retry_delay = 5
+                    for upd in data.get('result', []):
+                        offset = upd['update_id'] + 1
+                        asyncio.run_coroutine_threadsafe(
+                            self.app.process_update(
+                                __import__('telegram').Update.de_json(upd, self.app.bot)
+                            ),
+                            self._loop
+                        )
+                else:
+                    print(f"⚠️ 텔레그램 API 오류: {data}")
+                    time.sleep(5)
+            except _ur.HTTPError as e:
+                if e.code == 409:
+                    conflict_count += 1
+                    if conflict_count == 1:
+                        print("🚨 [충돌] 다른 봇 인스턴스가 실행 중입니다! 세션 경쟁 중...")
+                    elif conflict_count % 6 == 0:
+                        print(f"🚨 [충돌 {conflict_count}회] 아직 다른 인스턴스가 살아있습니다. 계속 대기...")
+                    time.sleep(retry_delay)
+                    retry_delay = min(60, retry_delay * 1.5)
+                else:
+                    print(f"⚠️ 폴링 HTTP 오류 {e.code}: {e.reason}")
+                    time.sleep(5)
+            except Exception as e:
+                print(f"⚠️ 폴링 오류: {e}")
+                time.sleep(5)
 
 # 하위 호환성을 위한 래퍼 클래스
 class TelegramNotifier(TelegramBot):
