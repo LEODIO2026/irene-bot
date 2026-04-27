@@ -152,6 +152,18 @@
   .bubble strong { color: var(--gold); }
   .bubble em { color: var(--accent2); font-style: normal; }
 
+  /* 메시지 타임스탬프 */
+  .msg-time {
+    font-size: 10px;
+    color: var(--muted);
+    align-self: flex-end;
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding-bottom: 4px;
+  }
+  .msg.user .msg-time { text-align: right; }
+  .msg.assistant .msg-time { text-align: left; }
+
   /* 이미지 첨부 프리뷰 (메시지 버블) */
   .img-preview {
     margin-bottom: 8px;
@@ -867,7 +879,8 @@ async function sendMessage(retryPayload) {
 
     // 유저 메시지 버블 추가
     const previewUrls = attachedImages.map(i => i.dataUrl);
-    addMessage('user', text, previewUrls);
+    const userSentTime = nowKST();
+    addMessage('user', text, previewUrls, null, userSentTime);
     input.value = '';
     input.style.height = 'auto';
 
@@ -950,7 +963,7 @@ async function sendMessage(retryPayload) {
       }
 
       if (pollData.status === 'done') {
-        addMessage('assistant', pollData.reply, null, pollData.model);
+        addMessage('assistant', pollData.reply, null, pollData.model, nowKST());
         if (pollData.market && pollData.market.price) lastKnownPrice = pollData.market.price;
         if (pollData.suggestion) {
           const s = pollData.suggestion;
@@ -1006,8 +1019,19 @@ function retryLastMessage(btn) {
   sendMessage(lastPayload);
 }
 
+// ── 현재 KST 시간 문자열 반환 ────────────────────────────
+function nowKST() {
+  const d = new Date();
+  // UTC+9
+  const kst = new Date(d.getTime() + 9 * 3600 * 1000);
+  const hh = String(kst.getUTCHours()).padStart(2, '0');
+  const mm = String(kst.getUTCMinutes()).padStart(2, '0');
+  const ss = String(kst.getUTCSeconds()).padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
+}
+
 // ── 메시지 DOM 추가 ──────────────────────────────────────
-function addMessage(role, text, imgSrcs, model) {
+function addMessage(role, text, imgSrcs, model, timestamp) {
   const container = document.getElementById('chatMessages');
   const div = document.createElement('div');
   div.className = 'msg ' + role;
@@ -1032,9 +1056,13 @@ function addMessage(role, text, imgSrcs, model) {
     modelBadge = `<div style="font-size:10px;color:${isGemini ? '#4ade80' : 'var(--accent)'};margin-top:6px;opacity:.7">${label}</div>`;
   }
 
+  const ts = timestamp || nowKST();
+  const timeLabel = role === 'user' ? `질문 ${ts}` : `답변 ${ts}`;
+
   div.innerHTML = `
     <div class="avatar">${avatarText}</div>
     <div class="bubble">${content}${modelBadge}</div>
+    <div class="msg-time">${timeLabel}</div>
   `;
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
