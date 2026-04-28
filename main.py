@@ -563,12 +563,16 @@ class IreneAgent:
         """
         while True:
             try:
+                # pnl 미결 항목 + pnl은 있지만 노션 미기록 항목 모두 처리
                 pending = [e for e in self.status['trade_log'] if e.get('pnl') is None]
+                notion_unlogged = [
+                    e for e in self.status['trade_log']
+                    if e.get('pnl') is not None and not e.get('notion_logged')
+                ]
+
                 if pending:
-                    # 코어 계정 closed PnL
-                    core_pnl   = self.fetcher.fetch_closed_pnl(limit=50)
-                    # 위성 계정 closed PnL (키가 다를 경우)
-                    sat_pnl    = self.satellite_fetcher.fetch_closed_pnl(limit=50)
+                    core_pnl = self.fetcher.fetch_closed_pnl(limit=50)
+                    sat_pnl  = self.satellite_fetcher.fetch_closed_pnl(limit=50)
 
                     for entry in pending:
                         sym_bybit = entry['symbol'].replace('/USDT','USDT').replace('/','')
@@ -576,43 +580,74 @@ class IreneAgent:
                         source    = sat_pnl if entry.get('account') == 'satellite' else core_pnl
 
                         for rec in source:
-                            # 심볼 매칭 + 시간 5분 이내
                             if rec['symbol'] != sym_bybit:
                                 continue
                             if abs(rec['created_time'] - ts_ms) > 5 * 60 * 1000:
                                 continue
                             entry['pnl']        = rec['pnl']
                             entry['exit_price'] = rec['exit_price']
-                            self._save_trade_log()
-                            
+
                             # ── 노션 자동 매매 일지 기록 ──
                             try:
-                                entry_price = float(entry.get('price', 0))
-                                exit_price = float(rec['exit_price'])
-                                pnl_usdt = float(rec['pnl'])
-                                side = entry.get('side', 'Unknown')
-                                
+                                entry_price = float(entry.get('entry_price', entry.get('price', 0)))
+                                exit_price  = float(rec['exit_price'])
+                                pnl_usdt    = float(rec['pnl'])
+                                side        = entry.get('side', 'Unknown')
+
                                 pnl_pct = 0.0
                                 if entry_price > 0:
                                     if side.lower() == 'buy':
                                         pnl_pct = ((exit_price - entry_price) / entry_price) * 100
                                     else:
                                         pnl_pct = ((entry_price - exit_price) / entry_price) * 100
-                                        
-                                self.notion_logger.log_trade(
+
+                                ok = self.notion_logger.log_trade(
                                     symbol=entry['symbol'],
                                     side=side,
                                     entry_price=entry_price,
                                     exit_price=exit_price,
                                     pnl_pct=pnl_pct,
                                     pnl_usdt=pnl_usdt,
-                                    strategy="Auto",
+                                    strategy=entry.get('source', 'Auto'),
                                     close_time_ms=rec['created_time']
                                 )
+                                entry['notion_logged'] = bool(ok)
                             except Exception as ne:
                                 print(f"⚠️ 아이린: 노션 로깅 중 내부 예외: {ne}")
-                                
+
+                            self._save_trade_log()
                             break
+
+                # 재시작 후 누락된 노션 기록 보완
+                for entry in notion_unlogged:
+                    try:
+                        entry_price = float(entry.get('entry_price', entry.get('price', 0)))
+                        exit_price  = float(entry.get('exit_price', 0))
+                        pnl_usdt    = float(entry.get('pnl', 0))
+                        side        = entry.get('side', 'Unknown')
+
+                        pnl_pct = 0.0
+                        if entry_price > 0 and exit_price > 0:
+                            if side.lower() == 'buy':
+                                pnl_pct = ((exit_price - entry_price) / entry_price) * 100
+                            else:
+                                pnl_pct = ((entry_price - exit_price) / entry_price) * 100
+
+                        ok = self.notion_logger.log_trade(
+                            symbol=entry['symbol'],
+                            side=side,
+                            entry_price=entry_price,
+                            exit_price=exit_price,
+                            pnl_pct=pnl_pct,
+                            pnl_usdt=pnl_usdt,
+                            strategy=entry.get('source', 'Auto'),
+                            close_time_ms=entry.get('ts')
+                        )
+                        entry['notion_logged'] = bool(ok)
+                        self._save_trade_log()
+                    except Exception as ne:
+                        print(f"⚠️ 아이린: 노션 재기록 중 예외: {ne}")
+
             except Exception as e:
                 print(f"아이린: PnL 모니터 오류: {e}")
             time.sleep(60)
