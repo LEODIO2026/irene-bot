@@ -556,6 +556,15 @@ class IreneAgent:
             reasons=signal['reasons']
         )
 
+    @staticmethod
+    def _trade_strategy_label(entry: dict) -> str:
+        src = entry.get('source', '')
+        if src.startswith('assistant_'):
+            return 'Manual'
+        if src == 'auto' or src == 'Auto' or src == '':
+            return 'Auto'
+        return src
+
     def _pnl_monitor_loop(self):
         """
         백그라운드: 60초마다 Bybit closed-pnl을 조회해 trade_log의 미결 항목에 손익 업데이트.
@@ -608,7 +617,7 @@ class IreneAgent:
                                     exit_price=exit_price,
                                     pnl_pct=pnl_pct,
                                     pnl_usdt=pnl_usdt,
-                                    strategy=entry.get('source', 'Auto'),
+                                    strategy=self._trade_strategy_label(entry),
                                     close_time_ms=rec['created_time']
                                 )
                                 entry['notion_logged'] = bool(ok)
@@ -640,7 +649,7 @@ class IreneAgent:
                             exit_price=exit_price,
                             pnl_pct=pnl_pct,
                             pnl_usdt=pnl_usdt,
-                            strategy=entry.get('source', 'Auto'),
+                            strategy=self._trade_strategy_label(entry),
                             close_time_ms=entry.get('ts')
                         )
                         entry['notion_logged'] = bool(ok)
