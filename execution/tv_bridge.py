@@ -160,7 +160,8 @@ class TVBridge:
                 'killzone': _get_killzone(),
                 'kz_times': _get_kst_killzone_times(),
                 'backtest_status': self.backtest_status,
-                'pending_proposals': self.agent.status.get('pending_proposals', {})
+                'pending_proposals': self.agent.status.get('pending_proposals', {}),
+                'altcoin_pumps': getattr(self.agent.altcoin_scanner, 'latest_pumps', [])
             })
 
         @self.app.route('/dashboard', methods=['GET'])

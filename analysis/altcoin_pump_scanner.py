@@ -20,6 +20,9 @@ class AltcoinPumpScanner:
         
         # 중복 알림 방지 캐시 {symbol: timestamp}
         self.alert_cache = {}
+        
+        # 대시보드 노출용 최신 탐지 데이터
+        self.latest_pumps = []
 
     def fetch_top_altcoins(self):
         """거래량 기준 상위 알트코인 심볼 리스트를 반환합니다."""
@@ -62,6 +65,7 @@ class AltcoinPumpScanner:
         if not symbols:
             return
 
+        current_pumps = []
         for symbol in symbols:
             try:
                 score = 0.0
@@ -103,9 +107,15 @@ class AltcoinPumpScanner:
                     reasons.append(f"📈 미결제약정(OI) {oi_data['oi_change_pct']:.1f}% 급등: 새로운 돈 유입!")
 
                 # ── 알림 전송 로직 ──
-                # 총점이 5점 이상이면 텔레그램 알림 발송
+                # 총점이 5점 이상이면 텔레그램 알림 발송 및 대시보드 저장
                 if score >= 5.0:
                     self._send_alert(symbol, score, reasons)
+                    current_pumps.append({
+                        'symbol': symbol,
+                        'score': score,
+                        'reasons': reasons,
+                        'time': datetime.now().strftime('%H:%M:%S')
+                    })
                     
                 # API 제한을 피하기 위해 잠시 대기
                 time.sleep(0.5)
@@ -113,7 +123,9 @@ class AltcoinPumpScanner:
             except Exception as e:
                 print(f"아이린: {symbol} 스캔 중 오류: {e}")
                 
-        print(f"✅ 스캔 완료! (대상: 상위 {len(symbols)}개 코인)")
+        # 스캔이 성공적으로 끝나면 최신 결과 갱신
+        self.latest_pumps = current_pumps
+        print(f"✅ 스캔 완료! (대상: 상위 {len(symbols)}개 코인, 포착: {len(current_pumps)}개)")
 
     def _send_alert(self, symbol, score, reasons):
         """텔레그램으로 탐지 알림을 전송합니다."""

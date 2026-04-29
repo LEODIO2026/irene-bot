@@ -405,6 +405,17 @@ tr td:last-child  { border-radius:0 8px 8px 0; }
   </div>
 </div>
 
+<!-- ── 알트코인 급등 레이더 ── -->
+<div class="pos-panel" style="border-color:rgba(244,114,182,0.3);">
+  <div class="panel-title" style="color:var(--sat);">
+    <span>🐙 아이린 레이더: 알트코인 폭등 전조 포착</span>
+    <span style="color:var(--muted);font-size:1em;">최신 스캔 결과</span>
+  </div>
+  <div id="altcoinPumpList" class="pos-list">
+    <div class="pos-empty">포착된 급등 전조 코인 없음</div>
+  </div>
+</div>
+
 <!-- ── 탭 ── -->
 <div class="tabs">
   <button id="tabLive" class="tab tab-on" onclick="showTab('live')">📡 진입 모니터</button>
@@ -823,6 +834,26 @@ async function update() {
       : EMPTY;
     document.getElementById('coreLogCount').textContent = coreLogs.length + '건';
     document.getElementById('satLogCount').textContent  = satLogs.length  + '건';
+
+    // 알트코인 급등주
+    const pumps = d.altcoin_pumps || [];
+    const pumpListEl = document.getElementById('altcoinPumpList');
+    if (pumpListEl) {
+      pumpListEl.innerHTML = pumps.length
+        ? pumps.map(p => `
+          <div class="pos-card" style="border-color:rgba(244,114,182,0.3);background:rgba(244,114,182,0.03);flex-direction:column;align-items:flex-start;gap:6px;padding:12px;min-width:280px;">
+            <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
+              <span style="font-weight:900;color:#fbcfe8;font-size:1em;">#${p.symbol.split('/')[0]}</span>
+              <span style="font-size:0.75em;font-weight:800;color:var(--yellow);background:rgba(251,191,36,0.1);padding:2px 6px;border-radius:6px;">🔥 ${p.score}점</span>
+            </div>
+            <div style="font-size:0.65em;color:var(--muted);">${p.time} 포착</div>
+            <div style="display:flex;flex-direction:column;gap:4px;margin-top:4px;width:100%;">
+              ${p.reasons.map(r => `<span style="font-size:0.7em;color:var(--text);white-space:normal;line-height:1.3;">• ${r}</span>`).join('')}
+            </div>
+          </div>
+        `).join('')
+        : '<div class="pos-empty">포착된 급등 전조 코인 없음</div>';
+    }
 
   } catch(e) { console.error('update error:', e); }
 }
