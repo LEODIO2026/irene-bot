@@ -11,6 +11,7 @@ from execution.tv_bridge import TVBridge
 from strategy.satellite import SatelliteStrategy
 from strategy.barbell_manager import BarbellManager
 from execution.notifier import TelegramNotifier
+from analysis.altcoin_pump_scanner import AltcoinPumpScanner
 
 load_dotenv()
 
@@ -96,6 +97,9 @@ class IreneAgent:
         # 노션 자동 매매 일지 로거
         from execution.notion_logger import NotionLogger
         self.notion_logger = NotionLogger()
+
+        # 알트코인 급등 전조 스캐너
+        self.altcoin_scanner = AltcoinPumpScanner(fetcher=self.fetcher, notifier=self.notifier)
 
         # 개별 코인용 상태
         self.symbol_status = {
@@ -680,7 +684,12 @@ class IreneAgent:
         pnl_thread.daemon = True
         pnl_thread.start()
 
-        # 3. 자율 ICT 분석 루프 시작 (메인)
+        # 3. 알트코인 급등 스캐너 스레드
+        scanner_thread = threading.Thread(target=self.altcoin_scanner.run_forever)
+        scanner_thread.daemon = True
+        scanner_thread.start()
+
+        # 4. 자율 ICT 분석 루프 시작 (메인)
         self.run_analysis_loop()
 
 if __name__ == "__main__":
