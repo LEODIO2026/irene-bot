@@ -123,7 +123,37 @@ class IreneAgent:
         print(f"🔵 코어 v5: 1D BOS/MSS + 200EMA + 4H EMA + 킬존 + 스윕+FVG")
         print(f"           리스크 1~3% (실시간 OI/L/S 기반) | RR 3:1 고정")
         print(f"🔴 위성:   자본 {satellite_capital:.0f}U | 레버리지 최대 {int(os.getenv('SATELLITE_MAX_LEV', 20))}배 | RR 3:1+")
+        # ── 락 파일 (중복 실행 방지) ──
+        self._lock_file = os.path.join(os.path.dirname(__file__), '.irene.lock')
+        self._check_lock()
+
         print(f"{'='*60}\n")
+
+    def _check_lock(self):
+        """이미 다른 인스턴스가 실행 중인지 확인하고 락 파일을 생성합니다."""
+        if os.path.exists(self._lock_file):
+            try:
+                with open(self._lock_file, 'r') as f:
+                    old_pid = int(f.read().strip())
+                # 해당 PID가 실제로 살아있는지 확인 (macOS/Linux)
+                os.kill(old_pid, 0) 
+                print(f"❌ [중복 실행 방지] 아이린이 이미 실행 중입니다. (PID: {old_pid})")
+                print("   만약 프로세스가 죽었는데도 이 메시지가 뜬다면 .irene.lock 파일을 수동으로 지워주세요.")
+                os._exit(1)
+            except (ProcessLookupError, ValueError):
+                # 프로세스가 없거나 파일 내용이 잘못된 경우 무시하고 덮어씀
+                pass
+
+        with open(self._lock_file, 'w') as f:
+            f.write(str(os.getpid()))
+
+    def _remove_lock(self):
+        """종료 시 락 파일을 삭제합니다."""
+        if os.path.exists(self._lock_file):
+            try:
+                os.remove(self._lock_file)
+            except:
+                pass
 
     def _load_trade_log(self):
         try:
@@ -665,6 +695,77 @@ class IreneAgent:
                 print(f"아이린: PnL 모니터 오류: {e}")
             time.sleep(60)
 
+    def sync_notion(self, days=1):
+        """특정 일수 전부터 현재까지의 거래 내역을 노션으로 동기화합니다."""
+        import datetime
+        try:
+            target_date = datetime.date.today() - datetime.timedelta(days=days)
+            # KST 기준 00:00:00 (UTC-9)
+            start_dt_kst = datetime.datetime.combine(target_date, datetime.time.min, 
+                                                    tzinfo=datetime.timezone(datetime.timedelta(hours=9)))
+            start_ts = int(start_dt_kst.timestamp() * 1000)
+            
+            print(f"🚀 아이린: {target_date} 이후의 내역을 노션으로 동기화합니다...")
+            
+            # 1. 코어(메인) 계정 내역 가져오기
+            main_history = self.fetcher.fetch_closed_pnl(limit=100)
+            
+            # 2. 위성 계정 내역 가져오기
+            sat_history = self.satellite_fetcher.fetch_closed_pnl(limit=100)
+            
+            all_trades = []
+            for t in main_history:
+                if t['created_time'] >= start_ts:
+                    t['account'] = 'core'
+                    all_trades.append(t)
+            for t in sat_history:
+                if t['created_time'] >= start_ts:
+                    t['account'] = 'satellite'
+                    all_trades.append(t)
+            
+            if not all_trades:
+                return {"success": True, "count": 0, "message": "동기화할 새로운 내역이 없습니다."}
+            
+            success_count = 0
+            for trade in all_trades:
+                # 이미 기록된 것인지 trade_log 등을 통해 체크할 수 있지만, 
+                # 여기서는 중복 기록을 허용하거나 NotionLogger에서 처리하도록 함
+                # (현 NotionLogger는 중복 체크 기능이 없으므로 주의)
+                
+                symbol = trade['symbol']
+                side = trade['side']
+                entry_price = float(trade.get('entry_price', 0))
+                exit_price = float(trade.get('exit_price', 0))
+                pnl_usdt = float(trade.get('pnl', 0))
+                
+                pnl_pct = 0.0
+                if entry_price > 0:
+                    if side.lower() in ['buy', 'long']:
+                        pnl_pct = ((exit_price - entry_price) / entry_price) * 100
+                    else:
+                        pnl_pct = ((entry_price - exit_price) / entry_price) * 100
+                
+                strategy = "Manual" if trade['account'] == 'core' else "Satellite"
+                
+                ok = self.notion_logger.log_trade(
+                    symbol=symbol,
+                    side=side,
+                    entry_price=entry_price,
+                    exit_price=exit_price,
+                    pnl_pct=pnl_pct,
+                    pnl_usdt=pnl_usdt,
+                    strategy=strategy,
+                    close_time_ms=trade['created_time']
+                )
+                if ok:
+                    success_count += 1
+                time.sleep(0.3)
+                
+            return {"success": True, "count": success_count, "message": f"{success_count}건의 거래를 노션에 추가했습니다."}
+        except Exception as e:
+            print(f"⚠️ 아이린: 노션 수동 동기화 중 오류: {e}")
+            return {"success": False, "message": str(e)}
+
     def _start_telegram_bot(self):
         """텔레그램 봇 리스너를 별도 스레드에서 실행"""
         t = threading.Thread(target=self.notifier.run_polling, daemon=True)
@@ -693,7 +794,18 @@ class IreneAgent:
         self.run_analysis_loop()
 
 if __name__ == "__main__":
-    agent = IreneAgent()
-    # 자율 매매 시스템 풀가동 (ICT 분석 루프 + 웹훅 보조)
-    agent.start()
+    agent = None
+    try:
+        agent = IreneAgent()
+        # 자율 매매 시스템 풀가동 (ICT 분석 루프 + 웹훅 보조)
+        agent.start()
+    except KeyboardInterrupt:
+        print("\n👋 아이린: 트레이더님, 다음에 또 만나요! 프로그램을 종료합니다.")
+    except Exception as e:
+        print(f"\n❌ 아이린 가동 중 치명적 오류 발생: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        if agent:
+            agent._remove_lock()
 

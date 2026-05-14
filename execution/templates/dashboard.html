@@ -284,6 +284,7 @@ tr td:last-child  { border-radius:0 8px 8px 0; }
     </div>
   </div>
   <div class="hd-right">
+    <button onclick="syncNotion()" class="btn-assistant" style="background:rgba(52,211,153,0.1);color:var(--green);border-color:rgba(52,211,153,0.3);">📝 노션 동기화</button>
     <a href="/trade-assistant" class="btn-assistant">✨ 아이린 어시스턴트</a>
     <div id="modePill" class="mode-pill mode-live">MAINNET</div>
     <div class="server-time">
@@ -980,6 +981,35 @@ async function loadEconCalendar() {
 
 loadEconCalendar();
 setInterval(loadEconCalendar, 5 * 60 * 1000);  // 5분마다 갱신
+
+// ── 노션 동기화 ──────────────────────────────────────────
+async function syncNotion() {
+  if (!confirm('어제 이후의 거래 내역을 노션으로 동기화할까요?')) return;
+  
+  const btn = event.target;
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ 동기화 중...';
+  
+  try {
+    const res = await fetch('/api/sync-notion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        passphrase: '{{ passphrase }}', 
+        days: 1 
+      })
+    });
+    const d = await res.json();
+    alert(d.message || (d.success ? '동기화 완료!' : '동기화 실패'));
+  } catch (e) {
+    console.error('sync error:', e);
+    alert('동기화 중 오류가 발생했습니다.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
 </script>
 </body>
 </html>

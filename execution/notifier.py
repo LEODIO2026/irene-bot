@@ -28,7 +28,7 @@ class TelegramBot:
             return
 
         # App은 __init__에서 동기 빌드 (이벤트 루프 불필요)
-        self.app = ApplicationBuilder().token(self.token).build()
+        self.app = ApplicationBuilder().token(self.token).updater(None).build()
         self._setup_handlers()
 
     def _setup_handlers(self):

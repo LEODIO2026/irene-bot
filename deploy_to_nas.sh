@@ -6,8 +6,8 @@
 # ─────────────────────────────────────────────
 
 NAS_USER="Agent"
-NAS_IP="192.168.50.116"
-NAS_DDNS="leodio.asuscomm.com"
+NAS_IP="192.168.50.117"
+NAS_DDNS="sttmedia.synology.me"
 NAS_PORT="2222"
 NAS_PATH="/volume1/docker/irene"
 DOCKER="/usr/local/bin/docker"

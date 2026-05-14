@@ -167,7 +167,7 @@ class TVBridge:
         @self.app.route('/dashboard', methods=['GET'])
         def dashboard():
             """프리미엄 실시간 모니터링 대시보드"""
-            return render_template('dashboard.html')
+            return render_template('dashboard.html', passphrase=self.passphrase)
 
         @self.app.route('/trade-assistant', methods=['GET'])
         def trade_assistant_page():
@@ -517,6 +517,17 @@ class TVBridge:
                 return jsonify(results), 200
             except Exception as e:
                 return jsonify({"status": "error", "message": str(e)}), 500
+
+        @self.app.route('/api/sync-notion', methods=['POST'])
+        def sync_notion_api():
+            """노션 거래 내역 수동 동기화 실행"""
+            data = request.get_json(silent=True) or {}
+            if data.get('passphrase') != self.passphrase:
+                return jsonify({'error': 'unauthorized'}), 401
+            
+            days = int(data.get('days', 1))
+            result = self.agent.sync_notion(days=days)
+            return jsonify(result), 200 if result['success'] else 500
 
         @self.app.route('/webhook', methods=['POST'])
         def webhook():
