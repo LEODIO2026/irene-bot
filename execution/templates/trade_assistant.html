@@ -490,62 +490,20 @@
   #toast.success { border-color: var(--buy); color: var(--buy); }
   #toast.error { border-color: var(--sell); color: var(--sell); }
 
-  /* ── 레이아웃 수정 (차트 중심) ── */
-  .main { display: flex; flex: 1; overflow: hidden; }
+  /* ── 레이아웃 수정 (미니멀 채팅 중심) ── */
+  .main { display: flex; justify-content: center; flex: 1; overflow: hidden; background: var(--bg); }
   .chat-panel {
-    width: 420px; flex-shrink: 0;
+    width: 100%; max-width: 800px;
     display: flex; flex-direction: column;
+    border-left: 1px solid var(--border);
     border-right: 1px solid var(--border);
+    background: var(--surface);
     min-width: 0;
-  }
-  .chart-panel {
-    flex: 1; position: relative;
-    background: var(--bg);
-    display: flex; flex-direction: column;
-  }
-  #tvWidgetContainer { flex: 1; width: 100%; }
-
-  /* 차트 위 플로팅 트레이딩 바 */
-  .trading-bar {
-    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-    background: rgba(15,23,42,0.9); backdrop-filter: blur(10px);
-    border: 1px solid var(--border); border-radius: 16px;
-    padding: 12px 20px; display: flex; align-items: center; gap: 16px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.5); z-index: 100;
-  }
-  .tbar-field { display: flex; align-items: center; gap: 8px; }
-  .tbar-field label { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
-  .tbar-field input {
-    width: 90px; background: rgba(255,255,255,0.05); border: 1px solid var(--border);
-    color: var(--text); padding: 8px; border-radius: 8px; font-size: 13px; outline: none;
-    text-align: center;
-  }
-  .tbar-field input:focus { border-color: var(--accent); }
-  .tbar-actions { display: flex; gap: 8px; border-left: 1px solid var(--border); padding-left: 16px; }
-  
-  .tbar-btn {
-    padding: 10px 18px; border-radius: 10px; border: none; font-weight: 800; cursor: pointer;
-    transition: all .2s; font-size: 13px; white-space: nowrap;
-  }
-  .tbar-btn.buy { background: var(--buy); color: #000; }
-  .tbar-btn.buy:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(52,211,153,0.3); }
-  .tbar-btn.sell { background: var(--sell); color: #fff; }
-  .tbar-btn.sell:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(248,113,113,0.3); }
-  .tbar-btn.close { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-  .tbar-btn.close:hover { background: var(--border); }
-
-  .exec-sym-badge {
-    background: rgba(129,140,248,0.2); color: var(--accent);
-    padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 800;
   }
 
   /* 반응형 */
-  @media (max-width: 1200px) {
-    .main { flex-direction: column-reverse; }
-    .chat-panel { width: 100%; height: 40vh; border-right: none; border-top: 1px solid var(--border); }
-    .chart-panel { flex: 1; }
-    .trading-bar { bottom: 10px; padding: 8px 12px; gap: 10px; width: 95%; justify-content: center; }
-    .tbar-field input { width: 70px; font-size: 11px; }
+  @media (max-width: 800px) {
+    .chat-panel { border: none; width: 100%; max-width: 100%; }
   }
 </style>
 </head>
@@ -634,33 +592,14 @@
     </div>
   </div>
 
-  <!-- ── 차트 패널 ── -->
-  <div class="chart-panel">
-    <div id="tvWidgetContainer"></div>
-    
-    <!-- 플로팅 트레이딩 바 (차트에서 직접 주문) -->
-    <div class="trading-bar">
-      <div class="exec-sym-badge" id="execSymbol">BTC/USDT</div>
-      <div class="tbar-field">
-        <label>SL</label>
-        <input type="number" id="slInput" step="0.01" placeholder="손절가">
-      </div>
-      <div class="tbar-field">
-        <label>TP</label>
-        <input type="number" id="tpInput" step="0.01" placeholder="익절가">
-      </div>
-      <div class="tbar-actions">
-        <button class="tbar-btn buy" onclick="executeTrade('buy')">BUY</button>
-        <button class="tbar-btn sell" onclick="executeTrade('sell')">SELL</button>
-        <button class="tbar-btn close" onclick="closeTrade()">CLOSE</button>
-      </div>
     </div>
   </div>
-
 </div>
 
-<!-- 외부 스크립트: 트레이딩뷰 위젯 -->
-<script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+<!-- 숨김 입력 (AI 제안 JS 호환용 - 레이아웃 영향 없음) -->
+<input type="hidden" id="slInput">
+<input type="hidden" id="tpInput">
+<input type="hidden" id="execSymbol">
 
 <!-- 숨김 입력 (AI 제안 JS 호환용) -->
 <input type="hidden" id="slInput">
@@ -719,60 +658,9 @@ function toggleSymbol(btn) {
     btn.classList.add('active');
     selectedSymbols.push(sym);
   }
-  // 첫 번째 심볼을 실행용 메인 심볼로 표시
+  // 첫 번째 심볼 표시
   document.getElementById('selectedSymbolLabel').textContent = selectedSymbols.join(', ');
-  const mainSym = selectedSymbols[0];
-  document.getElementById('execSymbol').textContent = mainSym;
-  
-  // 차트 심볼 업데이트
-  updateChartSymbol(mainSym);
 }
-
-let tvWidget = null;
-function initChart() {
-  const mainSym = selectedSymbols[0];
-  const tvSymbol = mainSym.replace('/', '').replace('USDT', 'USDT'); // e.g. BINANCE:BTCUSDT
-  
-  tvWidget = new TradingView.widget({
-    "autosize": true,
-    "symbol": "BINANCE:" + tvSymbol,
-    "interval": "15",
-    "timezone": "Asia/Seoul",
-    "theme": "dark",
-    "style": "1",
-    "locale": "ko",
-    "toolbar_bg": "#f1f3f6",
-    "enable_publishing": false,
-    "hide_side_toolbar": false,
-    "allow_symbol_change": true,
-    "container_id": "tvWidgetContainer"
-  });
-}
-
-function updateChartSymbol(sym) {
-  if (tvWidget && typeof tvWidget.setSymbol === 'function') {
-    const tvSymbol = sym.replace('/', '');
-    tvWidget.setSymbol("BINANCE:" + tvSymbol, "15", () => {});
-  } else {
-    // 위젯이 아직 로드되지 않았거나 setSymbol이 없는 경우 재생성
-    const container = document.getElementById('tvWidgetContainer');
-    container.innerHTML = '';
-    const tvSymbol = sym.replace('/', '');
-    new TradingView.widget({
-      "autosize": true,
-      "symbol": "BINANCE:" + tvSymbol,
-      "interval": "15",
-      "timezone": "Asia/Seoul",
-      "theme": "dark",
-      "style": "1",
-      "locale": "ko",
-      "container_id": "tvWidgetContainer"
-    });
-  }
-}
-
-// 초기화 호출
-window.addEventListener('load', initChart);
 
 
 // ── 방향 선택 (호환 유지용 no-op) ───────────────────────────
