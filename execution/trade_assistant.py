@@ -278,9 +278,12 @@ class TradeAssistant:
         return ""
 
     # ── 시장 데이터 조회 ─────────────────────────────────────────
-    def get_market_snapshot(self, symbol: str) -> dict:
+    def get_market_snapshot(self, symbols: list) -> dict:
         import numpy as np
         import datetime as _dt
+
+        if isinstance(symbols, str):
+            symbols = [s.strip() for s in symbols.split(',') if s.strip()]
 
         # 경제 지표 캘린더 인스턴스 지연 초기화
         if not hasattr(self, 'calendar'):
@@ -306,30 +309,32 @@ class TradeAssistant:
             except Exception:
                 return str(ts)
 
-        # 현재가
-        try:
-            df_1h = self.agent.fetcher.fetch_ohlcv(symbol, '1h', 3)
-            price = float(df_1h.iloc[-1]['close']) if df_1h is not None and not df_1h.empty else 0
-        except Exception:
-            df_1h = None
-            price = 0
+        results = {}
+        for symbol in symbols:
+            # 현재가
+            try:
+                df_1h = self.agent.fetcher.fetch_ohlcv(symbol, '1h', 3)
+                price = float(df_1h.iloc[-1]['close']) if df_1h is not None and not df_1h.empty else 0
+            except Exception:
+                df_1h = None
+                price = 0
 
-        # OI / L/S
-        try:
-            oi_data = self.agent.fetcher.fetch_oi_change_rate(symbol, '1h', 6)
-        except Exception:
-            oi_data = {}
-        try:
-            ls_data = self.agent.fetcher.fetch_long_short_history(symbol, '1h', 6)
-        except Exception:
-            ls_data = {}
+            # OI / L/S
+            try:
+                oi_data = self.agent.fetcher.fetch_oi_change_rate(symbol, '1h', 6)
+            except Exception:
+                oi_data = {}
+            try:
+                ls_data = self.agent.fetcher.fetch_long_short_history(symbol, '1h', 6)
+            except Exception:
+                ls_data = {}
 
-        # 현재 포지션
-        try:
-            positions = self.agent.fetcher.fetch_positions(symbols=[symbol])
-            pos = positions.get(symbol)
-        except Exception:
-            pos = None
+            # 현재 포지션
+            try:
+                positions = self.agent.fetcher.fetch_positions(symbols=[symbol])
+                pos = positions.get(symbol)
+            except Exception:
+                pos = None
 
         # ── 1D 구조 분석 (순수 ICT: 유동성·오더플로우·PD Array) ──
         structure_1d = {}
@@ -653,7 +658,19 @@ class TradeAssistant:
         except Exception as e:
             bnb = {'error': str(e)}
 
-        # 주요 경제 지표 캘린더 조회 (24시간 이내)
+            results[symbol] = {
+                'symbol': symbol, 'price': price,
+                'oi': oi_data, 'ls': ls_data, 'position': pos,
+                'structure_1d': structure_1d,
+                'structure_4h': structure_4h,
+                'sweep_15m': sweep_15m,
+                'funding': funding,
+                'fng': fng,
+                'btc_dom': btc_dom,
+                'bnb': bnb,
+            }
+
+        # 주요 경제 지표 캘린더 조회 (24시간 이내) - 한 번만 수행
         upcoming_events = []
         if getattr(self, 'calendar', None):
             try:
@@ -662,15 +679,7 @@ class TradeAssistant:
                 pass
 
         return {
-            'symbol': symbol, 'price': price,
-            'oi': oi_data, 'ls': ls_data, 'position': pos,
-            'structure_1d': structure_1d,
-            'structure_4h': structure_4h,
-            'sweep_15m': sweep_15m,
-            'funding': funding,
-            'fng': fng,
-            'btc_dom': btc_dom,
-            'bnb': bnb,
+            'symbols': results,
             'events': upcoming_events,
         }
 
@@ -689,22 +698,15 @@ class TradeAssistant:
             self._sessions[session_id] = {'claude': [], 'gemini': []}
 
         snap = self.get_market_snapshot(symbol)
-        s1d  = snap.get('structure_1d', {})
-        s4h  = snap.get('structure_4h', {})
-        s15m = snap.get('sweep_15m', {})
-        fund = snap.get('funding', {})
-        fng  = snap.get('fng', {})
-        bdom = snap.get('btc_dom', {})
-        bnb  = snap.get('bnb', {})
 
         def _fmt(v, fmt='.2f'):
             return f'{v:{fmt}}' if isinstance(v, (int, float)) else str(v or 'N/A')
 
-        import time as _time
         import datetime as _dt
         kst_now = _dt.datetime.utcnow() + _dt.timedelta(hours=9)
         kst_str = kst_now.strftime('%Y-%m-%d %H:%M KST')
-        # 뉴욕 현지시간 기준 킬존 판별 (DST 자동 반영)
+
+        # 뉴욕 현지시간 기준 킬존 판별
         try:
             from zoneinfo import ZoneInfo
         except ImportError:
@@ -713,21 +715,17 @@ class TradeAssistant:
         now_ny = _dt2.datetime.now(ZoneInfo("America/New_York"))
         hm = now_ny.hour * 100 + now_ny.minute
         if hm >= 2000:
-            killzone = '🟡 아시아 킬존 (NY 20:00–00:00) — 활성 · BSL/SSL 축적 · 돌파 추종 자제'
+            killzone = '🟡 아시아 킬존 (NY 20:00–00:00) — 활성'
         elif 200 <= hm < 500:
-            killzone = '🟢 런던 킬존 (NY 02:00–05:00) — 활성 · Judas Swing 주의 · IFVG 카운터 타점'
+            killzone = '🟢 런던 킬존 (NY 02:00–05:00) — 활성'
         elif 830 <= hm < 1100:
-            killzone = '🔴 크립토 뉴욕 킬존 (NY 08:30–11:00) — 활성 · 나스닥 커플링 · MSS+FVG 최고 승률'
+            killzone = '🔴 크립토 뉴욕 킬존 (NY 08:30–11:00) — 활성'
         elif 1330 <= hm < 1600:
-            killzone = '🟠 NY PM 세션 (NY 13:30–16:00) — 활성 · 되돌림 / 부분 익절 구간'
+            killzone = '🟠 NY PM 세션 (NY 13:30–16:00) — 활성'
         else:
-            if hm < 200:    next_kz = 'NY 02:00 (런던)'
-            elif hm < 830:  next_kz = 'NY 08:30 (뉴욕)'
-            elif hm < 1330: next_kz = 'NY 13:30 (NY PM)'
-            elif hm < 2000: next_kz = 'NY 20:00 (아시아)'
-            else:            next_kz = 'NY 02:00 (런던)'
-            killzone = f'⚪ 킬존 외 대기 구간 — 다음 킬존: {next_kz}'
+            killzone = '⚪ 킬존 외 대기 구간'
 
+        # 경제 지표 텍스트 생성 (공통)
         events = snap.get('events', [])
         event_text = ""
         if events:
@@ -738,63 +736,46 @@ class TradeAssistant:
         else:
             event_text = "\n[오늘의 주요 경제 지표]\n  24시간 이내 주요(High Impact) 지표 발표 없음.\n"
 
-        market_ctx = (
-            f"\n\n[자동 수집 시장 데이터 — {symbol}]\n"
-            f"현재 시각: {kst_str}\n"
-            f"킬존 상태: {killzone}\n"
-            f"현재가: {snap['price']:,.2f} USDT\n"
-            f"OI 변화: {snap['oi'].get('oi_change_pct', 'N/A')}% ({snap['oi'].get('trend', 'N/A')})\n"
-            f"L/S 비율: {snap['ls'].get('current_ratio', 'N/A')} ({snap['ls'].get('bias', 'N/A')})\n"
-            f"현재 포지션: {json.dumps(snap['position'], ensure_ascii=False) if snap['position'] else '없음'}\n"
-            + event_text +
-            f"\n[외부 시장 지표]\n"
-            f"  공포/탐욕 지수: {fng.get('value','N/A')} ({fng.get('label','N/A')}) → {fng.get('signal','N/A')}\n"
-            f"  펀딩피: {fund.get('rate_pct','N/A')}% → {fund.get('bias','N/A')}\n"
-            f"  BTC 도미넌스: {bdom.get('dominance_pct','N/A')}%\n"
-            f"\n[1D 데일리 바이어스 — 순수 ICT]\n"
-            f"  ★ 종합 바이어스: {s1d.get('daily_bias','?').upper()}\n"
-            f"  [1순위 유동성 스윕] {s1d.get('sweep_note','?')}\n"
-            f"  PDH: {_fmt(s1d.get('pdh'))} / PDL: {_fmt(s1d.get('pdl'))} "
-            f"| PWH: {_fmt(s1d.get('pwh'))} / PWL: {_fmt(s1d.get('pwl'))}\n"
-            f"  [2순위 오더플로우] {s1d.get('orderflow','?')} "
-            f"| {s1d.get('bos_event','?')} @ {_fmt(s1d.get('bos_level'))} "
-            f"({s1d.get('bos_ts','?')})\n"
-            f"  [3순위 PD Array] Equilibrium: {_fmt(s1d.get('equilibrium'))} "
-            f"(Range {_fmt(s1d.get('eq_low'))}~{_fmt(s1d.get('eq_high'))}) "
-            f"→ 현재가 {s1d.get('price_zone','?').upper()} Zone\n"
-            + f"\n[1D FVG & 유동성 풀]\n"
-            + (f"  1D FVG: " + ", ".join(
-                f"{f['type']}({f['btm']}~{f['top']}) @{f['ts']}" for f in s1d.get('fvgs_1d',[])
-               ) + "\n" if s1d.get('fvgs_1d') else "")
-            + (f"  Equal Highs(EQH): {', '.join(_fmt(v) for v in s1d.get('eqh', []))}\n" if s1d.get('eqh') else "")
-            + (f"  Equal Lows(EQL): {', '.join(_fmt(v) for v in s1d.get('eql', []))}\n" if s1d.get('eql') else "")
-            + f"\n[4H 오더플로우 — 순수 ICT]\n"
-            f"  스윙 구조: {s4h.get('orderflow','?')}\n"
-            f"  BOS/MSS: {s4h.get('bos_direction','?')} "
-            f"({s4h.get('bos_event','?')} @ {_fmt(s4h.get('bos_level'))} / 시간: {s4h.get('bos_ts','?')})\n"
-            f"  이전 4H 고점: {_fmt(s4h.get('prev_high'))} / 저점: {_fmt(s4h.get('prev_low'))}\n"
-            + (f"  4H FVG: " + ", ".join(
-                f"{f['type']}({f['btm']}~{f['top']}) @{f['ts']}" for f in s4h.get('fvgs_4h', [])
-               ) + "\n" if s4h.get('fvgs_4h') else "")
-            + f"\n[15m 유동성 스윕]\n"
-            f"  최근 스윕: {s15m.get('recent_sweep','?')} (시간: {s15m.get('recent_sweep_ts','?')})\n"
-            f"  최근 FVG: {s15m.get('recent_fvg_type','?')} "
-            f"(Top: {_fmt(s15m.get('recent_fvg_top'))} / Bottom: {_fmt(s15m.get('recent_fvg_bottom'))}) "
-            f"| 시간: {s15m.get('recent_fvg_ts','?')}\n"
-            + (
-            f"\n[바이낸스 선물 — 오더플로우]\n"
-            f"  OI: {bnb.get('oi',{}).get('oi_usd_b','N/A')}B$ "
-            f"| 펀딩피: {bnb.get('funding',{}).get('rate_pct','N/A')}%\n"
-            f"  고래 포지션: {bnb.get('top_ls',{}).get('bias','N/A')} "
-            f"(롱 {bnb.get('top_ls',{}).get('long_pct','N/A')}%)\n"
-            f"  테이커 압력(3h): {bnb.get('taker',{}).get('pressure','N/A')} "
-            f"(매수 {bnb.get('taker',{}).get('buy_pct','N/A')}%)\n"
-            f"  대형 청산: 롱청산 {bnb.get('liquidations',{}).get('long_liq_m','N/A')}M$ / "
-            f"숏청산 {bnb.get('liquidations',{}).get('short_liq_m','N/A')}M$ "
-            f"→ {bnb.get('liquidations',{}).get('dominant','N/A')}\n"
-            if bnb and 'error' not in bnb else ''
+        market_ctx = "\n\n" + event_text
+
+        # 각 심볼별 데이터 텍스트 생성
+        for sym, s_data in snap['symbols'].items():
+            s1d  = s_data.get('structure_1d', {})
+            s4h  = s_data.get('structure_4h', {})
+            s15m = s_data.get('sweep_15m', {})
+            fund = s_data.get('funding', {})
+            fng  = s_data.get('fng', {})
+            bdom = s_data.get('btc_dom', {})
+            bnb  = s_data.get('bnb', {})
+
+            market_ctx += (
+                f"\n[자동 수집 시장 데이터 — {sym}]\n"
+                f"현재 시각: {kst_str}\n"
+                f"킬존 상태: {killzone}\n"
+                f"현재가: {s_data['price']:,.2f} USDT\n"
+                f"OI 변화: {s_data['oi'].get('oi_change_pct', 'N/A')}% ({s_data['oi'].get('trend', 'N/A')})\n"
+                f"L/S 비율: {s_data['ls'].get('current_ratio', 'N/A')} ({s_data['ls'].get('bias', 'N/A')})\n"
+                f"현재 포지션: {json.dumps(s_data['position'], ensure_ascii=False) if s_data['position'] else '없음'}\n"
+                f"외부 시장 지표:\n"
+                f"  공포/탐욕 지수: {fng.get('value','N/A')} ({fng.get('label','N/A')}) → {fng.get('signal','N/A')}\n"
+                f"  펀딩피: {fund.get('rate_pct','N/A')}% → {fund.get('bias','N/A')}\n"
+                f"  BTC 도미넌스: {bdom.get('dominance_pct','N/A')}%\n"
+                f"1D 데일리 바이어스:\n"
+                f"  ★ 종합 바이어스: {s1d.get('daily_bias','?').upper()}\n"
+                f"  [1순위 유동성 스윕] {s1d.get('sweep_note','?')}\n"
+                f"  PDH: {_fmt(s1d.get('pdh'))} / PDL: {_fmt(s1d.get('pdl'))} | PWH: {_fmt(s1d.get('pwh'))} / PWL: {_fmt(s1d.get('pwl'))}\n"
+                f"  [2순위 오더플로우] {s1d.get('orderflow','?')} | {s1d.get('bos_event','?')} @ {_fmt(s1d.get('bos_level'))} ({s1d.get('bos_ts','?')})\n"
+                f"  [3순위 PD Array] Equilibrium: {_fmt(s1d.get('equilibrium'))} (Range {_fmt(s1d.get('eq_low'))}~{_fmt(s1d.get('eq_high'))}) → 현재가 {s1d.get('price_zone','?').upper()} Zone\n"
+                + f"  1D FVG: " + ", ".join(f"{f['type']}({f['btm']}~{f['top']}) @{f['ts']}" for f in s1d.get('fvgs_1d',[])) + "\n"
+                + f"4H 오더플로우:\n"
+                f"  스윙 구조: {s4h.get('orderflow','?')} | BOS/MSS: {s4h.get('bos_direction','?')} ({s4h.get('bos_event','?')} @ {_fmt(s4h.get('bos_level'))} / 시간: {s4h.get('bos_ts','?')})\n"
+                + f"15m 유동성 스윕: {s15m.get('recent_sweep','?')} (시간: {s15m.get('recent_sweep_ts','?')})\n"
+                + (
+                f"바이낸스 오더플로우:\n"
+                f"  OI: {bnb.get('oi',{}).get('oi_usd_b','N/A')}B$ | 펀딩피: {bnb.get('funding',{}).get('rate_pct','N/A')}% | 고래: {bnb.get('top_ls',{}).get('bias','N/A')}\n"
+                if bnb and 'error' not in bnb else ''
+                )
             )
-        )
 
         memory_content = self._load_memory()
         if memory_content:
@@ -816,7 +797,8 @@ class TradeAssistant:
             # 사용자에게 보여지는 답변에서는 태그 제거
             reply_text = re.sub(r'<SAVE_MEMORY>.*?</SAVE_MEMORY>', '', reply_text, flags=re.DOTALL).strip()
 
-        suggestion = self._parse_suggestion(reply_text, snap['price'])
+        first_symbol = list(snap['symbols'].keys())[0]
+        suggestion = self._parse_suggestion(reply_text, snap['symbols'][first_symbol]['price'])
 
         # ── 채팅 로그 기록 ────────────────────────────────────────
         import datetime as _dt

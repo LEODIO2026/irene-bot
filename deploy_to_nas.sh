@@ -39,7 +39,7 @@ fi
 
 # 2. NAS에서 git pull + Docker 설정 갱신 및 재시작
 echo "📡 NAS 배포 중..."
-$SSH_CMD $NAS_USER@$TARGET_HOST "cd $NAS_PATH && git pull origin main && /usr/local/bin/docker-compose up -d"
+$SSH_CMD $NAS_USER@$TARGET_HOST "cd $NAS_PATH && git pull origin main && /usr/local/bin/docker-compose restart irene-agent"
 
 # 3. 로그 확인
 echo ""
