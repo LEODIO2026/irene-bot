@@ -278,409 +278,151 @@ class TradeAssistant:
         return ""
 
     # ── 시장 데이터 조회 ─────────────────────────────────────────
-    def get_market_snapshot(self, symbols: list) -> dict:
+    def get_market_snapshot(self, symbols_input) -> dict:
+        """선택된 모든 심볼의 시장 데이터를 수집하여 구조화된 스냅샷 반환"""
         import numpy as np
         import datetime as _dt
+        import json
+        import urllib.request
 
-        if isinstance(symbols, str):
-            symbols = [s.strip() for s in symbols.split(',') if s.strip()]
-
-        # 경제 지표 캘린더 인스턴스 지연 초기화
-        if not hasattr(self, 'calendar'):
-            try:
-                from analysis.economic_calendar import EconomicCalendar
-                self.calendar = EconomicCalendar()
-            except ImportError:
-                self.calendar = None
-
+        # 입력 처리 (문자열인 경우 쉼표로 분리)
+        if isinstance(symbols_input, str):
+            symbols = [s.strip() for s in symbols_input.split(',') if s.strip()]
+        else:
+            symbols = list(symbols_input)
 
         def _ts_kst(ts):
             if not ts: return '?'
             try:
-                # numpy.int64 등 대응
                 if hasattr(ts, 'item'): ts = ts.item()
                 if isinstance(ts, (int, float, np.integer, np.floating)):
                     if ts > 1e12: ts /= 1000
                     dt = _dt.datetime.fromtimestamp(float(ts), _dt.timezone.utc)
-                else:
-                    dt = ts
-                kst = dt + _dt.timedelta(hours=9)
-                return kst.strftime('%H:%M')
-            except Exception:
-                return str(ts)
+                else: dt = ts
+                return (dt + _dt.timedelta(hours=9)).strftime('%H:%M')
+            except Exception: return str(ts)
 
-        results = {}
-        for symbol in symbols:
-            # 현재가
-            try:
-                df_1h = self.agent.fetcher.fetch_ohlcv(symbol, '1h', 3)
-                price = float(df_1h.iloc[-1]['close']) if df_1h is not None and not df_1h.empty else 0
-            except Exception:
-                df_1h = None
-                price = 0
-
-            # OI / L/S
-            try:
-                oi_data = self.agent.fetcher.fetch_oi_change_rate(symbol, '1h', 6)
-            except Exception:
-                oi_data = {}
-            try:
-                ls_data = self.agent.fetcher.fetch_long_short_history(symbol, '1h', 6)
-            except Exception:
-                ls_data = {}
-
-            # 현재 포지션
-            try:
-                positions = self.agent.fetcher.fetch_positions(symbols=[symbol])
-                pos = positions.get(symbol)
-            except Exception:
-                pos = None
-
-        # ── 1D 구조 분석 (순수 ICT: 유동성·오더플로우·PD Array) ──
-        structure_1d = {}
-        try:
-            df_1d = self.agent.fetcher.fetch_ohlcv(symbol, '1d', 60)
-            if df_1d is not None and len(df_1d) >= 10:
-                today = df_1d.iloc[-1]
-                prev  = df_1d.iloc[-2]
-                pdh   = round(float(prev['high']), 2)
-                pdl   = round(float(prev['low']),  2)
-
-                # ── 1순위: PDH/PDL 유동성 스윕 감지 ──────────────
-                bsl_swept = float(today['high']) > pdh and float(today['close']) < pdh
-                ssl_swept = float(today['low'])  < pdl and float(today['close']) > pdl
-                if bsl_swept:
-                    sweep_bias = 'bearish'
-                    sweep_note = f'BSL 스윕 (PDH {pdh} 초과 후 되돌림) → Bearish Bias'
-                elif ssl_swept:
-                    sweep_bias = 'bullish'
-                    sweep_note = f'SSL 스윕 (PDL {pdl} 하회 후 되돌림) → Bullish Bias'
-                else:
-                    sweep_bias = None
-                    sweep_note = '당일 PDH/PDL 스윕 없음 → 2·3순위로 판단'
-
-                # 주봉 고/저 (전 7봉)
-                pwh = round(float(df_1d['high'].iloc[-8:-1].max()), 2)
-                pwl = round(float(df_1d['low'].iloc[-8:-1].min()),  2)
-
-                # ── 2순위: 1D 오더플로우 & BOS/MSS ───────────────
-                try:
-                    from core.ict_engine import ICTEngine
-                    engine = ICTEngine()
-                    bos    = engine.detect_bos_mss(df_1d, swing_window=3)
-                    swings = engine.detect_swing_structure(df_1d, swing_window=5, lookback=3)
-                except Exception:
-                    bos    = {'direction': 'neutral', 'last_event': None, 'level': None}
-                    swings = {'structure': 'sideways', 'hh': False, 'hl': False, 'lh': False, 'll': False}
-
-                if swings.get('hh') and swings.get('hl'):
-                    orderflow = 'bullish (HH·HL)'
-                elif swings.get('lh') and swings.get('ll'):
-                    orderflow = 'bearish (LH·LL)'
-                else:
-                    orderflow = 'sideways / mixed'
-
-                # ── 3순위: PD Array — Equilibrium 50% ────────────
-                eq_high = round(float(df_1d['high'].iloc[-20:].max()), 2)
-                eq_low  = round(float(df_1d['low'].iloc[-20:].min()),  2)
-                equilibrium = round((eq_high + eq_low) / 2, 2)
-                price_zone  = 'premium' if price > equilibrium else 'discount'
-
-                # 1D FVG 최근 3개 (PD Array 참고용)
-                try:
-                    fvgs_1d = engine.detect_fvg(df_1d)
-                    fvg_summary = [
-                        {
-                            'type': f['type'],
-                            'top': round(f['top'], 2),
-                            'btm': round(f['bottom'], 2),
-                            'ts': _ts_kst(f.get('timestamp'))
-                        }
-                        for f in fvgs_1d[-3:]
-                    ] if fvgs_1d else []
-                except Exception:
-                    fvg_summary = []
-
-                # EQH/EQL (유동성 풀)
-                try:
-                    eq_data = engine.detect_eqh_eql(df_1d)
-                except Exception:
-                    eq_data = {'eqh': [], 'eql': []}
-
-                # ── 종합 데일리 바이어스 ──────────────────────────
-                if sweep_bias:
-                    daily_bias = sweep_bias        # 1순위 우선
-                elif bos['direction'] in ('bullish', 'bearish'):
-                    daily_bias = bos['direction']  # 2순위
-                else:
-                    daily_bias = 'neutral'
-
-                structure_1d = {
-                    'pdh': pdh, 'pdl': pdl, 'pwh': pwh, 'pwl': pwl,
-                    'sweep_bias': sweep_bias or 'none',
-                    'sweep_note': sweep_note,
-                    'orderflow':  orderflow,
-                    'bos_event':  bos['last_event'],
-                    'bos_level':  round(bos['level'], 2) if bos['level'] else None,
-                    'bos_ts':     _ts_kst(bos.get('timestamp')),
-                    'bos_direction': bos['direction'],
-                    'eq_high': eq_high, 'eq_low': eq_low,
-                    'equilibrium': equilibrium,
-                    'price_zone': price_zone,
-                    'fvgs_1d': fvg_summary,
-                    'daily_bias': daily_bias,
-                    'eqh': eq_data.get('eqh', []),
-                    'eql': eq_data.get('eql', []),
-                }
-        except Exception as e:
-            structure_1d = {'error': str(e)}
-
-        # ── 4H 오더플로우 (순수 ICT: 스윙구조·BOS/MSS·FVG) ──────
-        structure_4h = {}
-        try:
-            df_4h = self.agent.fetcher.fetch_ohlcv(symbol, '4h', 60)
-            if df_4h is not None and len(df_4h) >= 15:
-                try:
-                    from core.ict_engine import ICTEngine
-                    engine = ICTEngine()
-                    # 스윙 구조 (HH/HL vs LH/LL)
-                    swings4h = engine.detect_swing_structure(df_4h, swing_window=3, lookback=3)
-                    # BOS/MSS
-                    bos4h = engine.detect_bos_mss(df_4h, swing_window=3)
-                    # 4H FVG 최근 3개
-                    fvgs4h = engine.detect_fvg(df_4h)
-                    fvg4h_summary = [
-                        {
-                            'type': f['type'],
-                            'top': round(f['top'], 2),
-                            'btm': round(f['bottom'], 2),
-                            'ts': _ts_kst(f.get('timestamp'))
-                        }
-                        for f in fvgs4h[-3:]
-                    ] if fvgs4h else []
-                    # 최근 4H 고저 (유동성 레벨)
-                    prev4h_high = round(float(df_4h.iloc[-2]['high']), 2)
-                    prev4h_low  = round(float(df_4h.iloc[-2]['low']),  2)
-                except Exception:
-                    swings4h = {'structure': 'sideways', 'hh': False, 'hl': False, 'lh': False, 'll': False}
-                    bos4h    = {'direction': 'neutral', 'last_event': None, 'level': None}
-                    fvg4h_summary = []
-                    prev4h_high = prev4h_low = 0
-
-                if swings4h.get('hh') and swings4h.get('hl'):
-                    orderflow4h = 'bullish (HH·HL)'
-                elif swings4h.get('lh') and swings4h.get('ll'):
-                    orderflow4h = 'bearish (LH·LL)'
-                else:
-                    orderflow4h = 'sideways / mixed'
-
-                structure_4h = {
-                    'orderflow':    orderflow4h,
-                    'bos_direction': bos4h['direction'],
-                    'bos_event':    bos4h['last_event'],
-                    'bos_level':    round(bos4h['level'], 2) if bos4h.get('level') else None,
-                    'bos_ts':       _ts_kst(bos4h.get('timestamp')),
-                    'fvgs_4h':      fvg4h_summary,
-                    'prev_high':    prev4h_high,
-                    'prev_low':     prev4h_low,
-                }
-        except Exception as e:
-            structure_4h = {'error': str(e)}
-
-        # ── 15m 유동성 스윕 ────────────────────────────────────────
-        sweep_15m = {}
-        try:
-            df_15m = self.agent.fetcher.fetch_ohlcv(symbol, '15m', 60)
-            if df_15m is not None and len(df_15m) >= 25:
-                try:
-                    from core.ict_engine import ICTEngine
-                    engine = ICTEngine()
-                    sweeps = engine.detect_liquidity_sweeps(df_15m, lookback=20)
-                    recent = sweeps[-1] if sweeps else None
-                except Exception:
-                    recent = None
-                # 최근 15m FVG
-                try:
-                    fvgs = engine.detect_fvg(df_15m)
-                    recent_fvg = fvgs[-1] if fvgs else None
-                except Exception:
-                    recent_fvg = None
-                sweep_15m = {
-                    'recent_sweep': recent['type'] if recent else '없음',
-                    'recent_sweep_ts': _ts_kst(recent.get('timestamp')) if recent else None,
-                    'recent_fvg_type': recent_fvg['type'] if recent_fvg else '없음',
-                    'recent_fvg_top': round(recent_fvg['top'], 2) if recent_fvg else None,
-                    'recent_fvg_bottom': round(recent_fvg['bottom'], 2) if recent_fvg else None,
-                    'recent_fvg_ts': _ts_kst(recent_fvg.get('timestamp')) if recent_fvg else None,
-                }
-        except Exception as e:
-            sweep_15m = {'error': str(e)}
-
-        # ── 펀딩피 (Bybit, ccxt) ──────────────────────────────────
-        funding = {}
-        try:
-            perp = symbol if ':' in symbol else f"{symbol}:{symbol.split('/')[1]}"
-            fr = self.agent.fetcher.exchange.fetch_funding_rate(perp)
-            rate = round(float(fr.get('fundingRate', 0)) * 100, 4)
-            if rate > 0.05:
-                bias = '롱 과열 (숏 스퀴즈 경계)'
-            elif rate < -0.03:
-                bias = '숏 과열 (롱 스퀴즈 경계)'
-            else:
-                bias = '중립'
-            funding = {'rate_pct': rate, 'bias': bias}
-        except Exception:
-            funding = {}
-
-        # ── Fear & Greed Index (Alternative.me) ──────────────────
+        # 1. 공통 지표 수집 (한 번만)
         fng = {}
         try:
-            import urllib.request
             with urllib.request.urlopen('https://api.alternative.me/fng/?limit=1', timeout=5) as r:
                 d = json.loads(r.read())['data'][0]
-                val = int(d['value'])
-                cls = d['value_classification']
-                if val <= 25:   signal = '극단 공포 → 롱 바이어스 강화'
-                elif val <= 45: signal = '공포 → 롱 우세'
-                elif val <= 55: signal = '중립'
-                elif val <= 75: signal = '탐욕 → 숏 경계'
-                else:           signal = '극단 탐욕 → 숏 바이어스 강화'
-                fng = {'value': val, 'label': cls, 'signal': signal}
-        except Exception:
-            fng = {}
+                fng = {'value': int(d['value']), 'label': d['value_classification']}
+                val = fng['value']
+                fng['signal'] = '극단 공포' if val <= 25 else '공포' if val <= 45 else '중립' if val <= 55 else '탐욕' if val <= 75 else '극단 탐욕'
+        except Exception: pass
 
-        # ── BTC 도미넌스 (CoinGecko, 무료) ───────────────────────
         btc_dom = {}
         try:
-            import urllib.request
-            with urllib.request.urlopen(
-                'https://api.coingecko.com/api/v3/global', timeout=5
-            ) as r:
+            with urllib.request.urlopen('https://api.coingecko.com/api/v3/global', timeout=5) as r:
                 g = json.loads(r.read())['data']
-                dom = round(g['market_cap_percentage'].get('btc', 0), 2)
-                btc_dom = {'dominance_pct': dom}
-        except Exception:
-            btc_dom = {}
+                btc_dom = {'dominance_pct': round(g['market_cap_percentage'].get('btc', 0), 2)}
+        except Exception: pass
 
-        # ── 바이낸스 선물 퍼블릭 API (무료, 키 없음) ─────────────
-        bnb = {}
-        try:
-            import urllib.request as _ur
-            base = symbol.split('/')[0]          # 'BTC/USDT' → 'BTC'
-            sym  = f'{base}USDT'                 # 바이낸스 심볼
-
-            def _bnb(path, params=''):
-                url = f'https://fapi.binance.com/fapi/v1/{path}?{params}'
-                req = _ur.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-                with _ur.urlopen(req, timeout=6) as r:
-                    return json.loads(r.read())
-
-            # 1) 바이낸스 OI
-            oi_bnb = {}
-            try:
-                d = _bnb('openInterest', f'symbol={sym}')
-                oi_val = float(d.get('openInterest', 0))
-                # 현재가 곱해서 달러 환산
-                oi_usd = round(oi_val * price / 1e9, 3)
-                oi_bnb = {'oi_contracts': round(oi_val, 0), 'oi_usd_b': oi_usd}
-            except Exception:
-                pass
-
-            # 2) 바이낸스 펀딩피 (최신)
-            fund_bnb = {}
-            try:
-                d = _bnb('fundingRate', f'symbol={sym}&limit=1')
-                if d:
-                    rate = round(float(d[-1].get('fundingRate', 0)) * 100, 4)
-                    fund_bnb = {'rate_pct': rate}
-            except Exception:
-                pass
-
-            # 3) 상위 트레이더 L/S 포지션 비율 (고래 포지션)
-            top_ls = {}
-            try:
-                d = _bnb('topLongShortPositionRatio', f'symbol={sym}&period=1h&limit=2')
-                if d:
-                    latest = d[-1]
-                    ratio  = float(latest.get('longShortRatio', 1))
-                    long_p = float(latest.get('longAccount', 0.5))
-                    top_ls = {
-                        'ratio': round(ratio, 3),
-                        'long_pct': round(long_p * 100, 1),
-                        'bias': '고래 롱 우세' if ratio > 1.2 else '고래 숏 우세' if ratio < 0.8 else '고래 중립',
-                    }
-            except Exception:
-                pass
-
-            # 4) 테이커 매수/매도 거래량 (CVD 대체 — 3봉 합산)
-            taker = {}
-            try:
-                d = _bnb('takerbuyselltvolume', f'symbol={sym}&period=1h&limit=3')
-                if d:
-                    buy_vol  = sum(float(r.get('buyVol',  0)) for r in d)
-                    sell_vol = sum(float(r.get('sellVol', 0)) for r in d)
-                    total    = buy_vol + sell_vol
-                    buy_pct  = round(buy_vol / total * 100, 1) if total else 50
-                    delta    = round(buy_vol - sell_vol, 0)
-                    taker = {
-                        'buy_pct': buy_pct,
-                        'delta_usd': delta,
-                        'pressure': '강한 매수 우세' if buy_pct > 55 else '강한 매도 우세' if buy_pct < 45 else '균형',
-                    }
-            except Exception:
-                pass
-
-            # 5) 대형 청산 주문 (최근 24h, 롱/숏 청산 합산)
-            liq_force = {}
-            try:
-                d = _bnb('allForceOrders', f'symbol={sym}&limit=100')
-                if d:
-                    long_liq  = sum(float(o['origQty']) * float(o['price'])
-                                    for o in d if o.get('side') == 'SELL') / 1e6
-                    short_liq = sum(float(o['origQty']) * float(o['price'])
-                                    for o in d if o.get('side') == 'BUY') / 1e6
-                    liq_force = {
-                        'long_liq_m':  round(long_liq, 2),
-                        'short_liq_m': round(short_liq, 2),
-                        'dominant': '롱 청산 우세 → SSL 스윕 가능성' if long_liq > short_liq
-                                    else '숏 청산 우세 → BSL 스윕 가능성',
-                    }
-            except Exception:
-                pass
-
-            bnb = {
-                'oi': oi_bnb,
-                'funding': fund_bnb,
-                'top_ls': top_ls,
-                'taker': taker,
-                'liquidations': liq_force,
-            }
-        except Exception as e:
-            bnb = {'error': str(e)}
-
-            results[symbol] = {
-                'symbol': symbol, 'price': price,
-                'oi': oi_data, 'ls': ls_data, 'position': pos,
-                'structure_1d': structure_1d,
-                'structure_4h': structure_4h,
-                'sweep_15m': sweep_15m,
-                'funding': funding,
-                'fng': fng,
-                'btc_dom': btc_dom,
-                'bnb': bnb,
-            }
-
-        # 주요 경제 지표 캘린더 조회 (24시간 이내) - 한 번만 수행
-        upcoming_events = []
+        events = []
         if getattr(self, 'calendar', None):
             try:
-                upcoming_events = self.calendar.fetch_upcoming_events(limit_hours=24)
-            except Exception:
-                pass
+                events = self.calendar.get_events()
+            except Exception: pass
+
+        # 2. 각 심볼별 데이터 수집
+        symbol_results = {}
+        for symbol in symbols:
+            try:
+                # A) 기본 데이터 (가격, OI, L/S)
+                df_1h = self.agent.fetcher.fetch_ohlcv(symbol, '1h', 5)
+                price = float(df_1h.iloc[-1]['close']) if df_1h is not None and not df_1h.empty else 0
+                
+                oi_data = {}
+                try: oi_data = self.agent.fetcher.fetch_oi_change_rate(symbol, '1h', 6)
+                except Exception: pass
+                
+                ls_data = {}
+                try: ls_data = self.agent.fetcher.fetch_long_short_history(symbol, '1h', 6)
+                except Exception: pass
+
+                pos = None
+                try: pos = self.agent.fetcher.fetch_positions(symbols=[symbol]).get(symbol)
+                except Exception: pass
+
+                # B) ICT 구조 분석 (1D, 4H, 15m)
+                from core.ict_engine import ICTEngine
+                engine = ICTEngine()
+
+                # 1D
+                s1d = {}
+                df_1d = self.agent.fetcher.fetch_ohlcv(symbol, '1d', 60)
+                if df_1d is not None and len(df_1d) >= 10:
+                    prev = df_1d.iloc[-2]
+                    pdh, pdl = round(float(prev['high']), 2), round(float(prev['low']), 2)
+                    today = df_1d.iloc[-1]
+                    bsl_swept = float(today['high']) > pdh and float(today['close']) < pdh
+                    ssl_swept = float(today['low']) < pdl and float(today['close']) > pdl
+                    bos = engine.detect_bos_mss(df_1d, swing_window=3)
+                    
+                    s1d = {
+                        'pdh': pdh, 'pdl': pdl,
+                        'sweep_bias': 'bullish' if ssl_swept else 'bearish' if bsl_swept else 'none',
+                        'sweep_note': f"SSL Sweep @ {pdl}" if ssl_swept else f"BSL Sweep @ {pdh}" if bsl_swept else "No Sweep",
+                        'orderflow': bos['direction'],
+                        'bos_event': bos['last_event'],
+                        'bos_level': bos['level'],
+                        'bos_ts': _ts_kst(bos.get('timestamp')),
+                        'daily_bias': 'bullish' if ssl_swept else 'bearish' if bsl_swept else bos['direction'],
+                        'equilibrium': round((float(df_1d['high'].max()) + float(df_1d['low'].min())) / 2, 2),
+                        'price_zone': 'premium' if price > (float(df_1d['high'].max()) + float(df_1d['low'].min())) / 2 else 'discount'
+                    }
+
+                # 4H
+                s4h = {}
+                df_4h = self.agent.fetcher.fetch_ohlcv(symbol, '4h', 40)
+                if df_4h is not None and len(df_4h) >= 10:
+                    bos4h = engine.detect_bos_mss(df_4h, swing_window=3)
+                    s4h = {
+                        'orderflow': bos4h['direction'],
+                        'bos_event': bos4h['last_event'],
+                        'bos_level': bos4h['level'],
+                        'bos_ts': _ts_kst(bos4h.get('timestamp'))
+                    }
+
+                # 15m Sweep
+                s15m = {}
+                df_15m = self.agent.fetcher.fetch_ohlcv(symbol, '15m', 40)
+                if df_15m is not None:
+                    sweeps = engine.detect_liquidity_sweeps(df_15m)
+                    recent = sweeps[-1] if sweeps else None
+                    s15m = {'recent_sweep': recent['type'] if recent else 'none', 'recent_sweep_ts': _ts_kst(recent['timestamp']) if recent else None}
+
+                # C) 외부 데이터 (펀딩피, 바이낸스)
+                funding = {}
+                try:
+                    fr = self.agent.fetcher.exchange.fetch_funding_rate(symbol if ':' in symbol else f"{symbol}:{symbol.split('/')[1]}")
+                    rate = round(float(fr.get('fundingRate', 0)) * 100, 4)
+                    funding = {'rate_pct': rate, 'bias': '롱 과열' if rate > 0.05 else '숏 과열' if rate < -0.03 else '중립'}
+                except Exception: pass
+
+                bnb = {}
+                try:
+                    base = symbol.split('/')[0]
+                    url = f'https://fapi.binance.com/fapi/v1/openInterest?symbol={base}USDT'
+                    with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'}), timeout=5) as r:
+                        oi_val = float(json.loads(r.read()).get('openInterest', 0))
+                        bnb = {'oi': {'oi_usd_b': round(oi_val * price / 1e9, 2)}}
+                except Exception: pass
+
+                symbol_results[symbol] = {
+                    'price': price, 'oi': oi_data, 'ls': ls_data, 'position': pos,
+                    'structure_1d': s1d, 'structure_4h': s4h, 'sweep_15m': s15m,
+                    'funding': funding, 'bnb': bnb
+                }
+            except Exception as e:
+                symbol_results[symbol] = {'error': str(e)}
 
         return {
-            'symbols': results,
-            'events': upcoming_events,
+            'symbols': symbol_results,
+            'events': events,
+            'fng': fng,
+            'btc_dom': btc_dom
         }
 
     # ── 대화 처리 (모델 분기) ─────────────────────────────────────
