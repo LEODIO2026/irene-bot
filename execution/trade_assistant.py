@@ -433,7 +433,7 @@ class TradeAssistant:
 
     def chat(self, session_id: str, user_text: str,
              images: list = None,
-             symbol: str = 'BTC/USDT', model: str = 'claude-sonnet-4-6') -> dict:
+             symbol: str = 'BTC/USDT', model: str = 'claude-3-7-sonnet-20250219') -> dict:
         images = images or []
 
         if session_id not in self._sessions:
@@ -568,7 +568,7 @@ class TradeAssistant:
     # ── Claude 대화 ───────────────────────────────────────────────
     def _chat_claude(self, session_id: str, user_text: str,
                      images: list, market_ctx: str,
-                     model_id: str = 'claude-sonnet-4-6') -> str:
+                     model_id: str = 'claude-3-7-sonnet-20250219') -> str:
         if not self._claude_client:
             raise ValueError("ANTHROPIC_API_KEY가 .env에 설정되지 않았습니다.")
 

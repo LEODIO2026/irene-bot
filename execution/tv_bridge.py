@@ -182,7 +182,7 @@ class TVBridge:
             session_id = data.get('session_id', 'default')
             user_text  = data.get('message', '').strip()
             symbol     = data.get('symbol', 'BTC/USDT')
-            model      = data.get('model', 'claude-sonnet-4-6')
+            model      = data.get('model', 'claude-3-7-sonnet-20250219')
 
             images = data.get('images') or []
             if not images and data.get('image_b64'):
@@ -560,6 +560,10 @@ class TVBridge:
                 auto_sl, _ = self.agent.ict_engine.calculate_sl_tp(df, side)
                 sl = auto_sl
 
+            if sl is None:
+                print(f"⚠️ 아이린: [{symbol}] 스탑로스를 자동으로 계산할 수 없어 매매를 중단합니다.")
+                return
+
             # TP는 항상 SL 기준 1:3 고정
             risk = abs(current_price - sl)
             tp = round(current_price + risk * 3, 4) if side == 'buy' else round(current_price - risk * 3, 4)
@@ -599,6 +603,10 @@ class TVBridge:
             if sl is None:
                 auto_sl, _ = self.agent.ict_engine.calculate_sl_tp(df, side)
                 sl = auto_sl
+
+            if sl is None:
+                print(f"⚠️ 아이린[위성]: [{symbol}] 스탑로스를 자동으로 계산할 수 없어 매매를 중단합니다.")
+                return
 
             # TP는 항상 SL 기준 1:3 고정
             risk = abs(current_price - sl)

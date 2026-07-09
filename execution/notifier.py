@@ -20,8 +20,8 @@ class TelegramBot:
         self.agent = agent_instance
         self.app = None
         self._loop = None
-        # 기본 모델 설정 (Claude 4.6 Sonnet)
-        self.current_model = 'claude-sonnet-4-6'
+        # 기본 모델 설정 (Claude 3.7 Sonnet)
+        self.current_model = 'claude-3-7-sonnet-20250219'
 
         if not self.token:
             print("⚠️ TELEGRAM_BOT_TOKEN이 설정되지 않았습니다.")
@@ -67,6 +67,13 @@ class TelegramBot:
             return
 
         keyboard = [
+            [
+                InlineKeyboardButton("🔮 Claude 5 Fable", callback_data='claude-fable-5'),
+            ],
+            [
+                InlineKeyboardButton("🧠 Claude 3.7 Sonnet", callback_data='claude-3-7-sonnet-20250219'),
+                InlineKeyboardButton("⚡ Claude 3.5 Sonnet", callback_data='claude-3-5-sonnet-20241022'),
+            ],
             [
                 InlineKeyboardButton("🧠 Claude 4.6 Opus", callback_data='claude-opus-4-6'),
                 InlineKeyboardButton("⚡ Claude 4.6 Sonnet", callback_data='claude-sonnet-4-6'),

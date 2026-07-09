@@ -22,12 +22,60 @@ class NotionLogger:
         """노션 연동에 필요한 키와 DB ID가 모두 설정되어 있는지 확인합니다."""
         return bool(self.api_key and self.database_id)
 
+    def _check_duplicate(self, symbol: str, pnl_usdt: float) -> bool:
+        """
+        노션 데이터베이스를 쿼리하여 이미 동일한 Symbol, PnL USDT를 가진 일지가 기록되었는지 확인합니다.
+        """
+        if not self.is_configured():
+            return False
+            
+        try:
+            url = f"https://api.notion.com/v1/databases/{self.database_id}/query"
+            select_symbol = symbol.replace("/USDT", "").replace(":USDT", "")
+            rounded_pnl = round(float(pnl_usdt), 2)
+            
+            # 쿼리 필터 구성 (Symbol 일치 && PnL USDT 일치)
+            payload = {
+                "filter": {
+                  "and": [
+                    {
+                      "property": "Symbol",
+                      "select": {
+                        "equals": select_symbol
+                      }
+                    },
+                    {
+                      "property": "PnL USDT",
+                      "number": {
+                        "equals": rounded_pnl
+                      }
+                    }
+                  ]
+                },
+                "page_size": 1
+            }
+            
+            response = requests.post(url, headers=self.headers, json=payload, timeout=10)
+            if response.status_code == 200:
+                results = response.json().get("results", [])
+                if len(results) > 0:
+                    return True
+            return False
+        except Exception as e:
+            print(f"⚠️ 아이린: 노션 중복 조회 중 예외 발생: {e}")
+            return False
+
     def log_trade(self, symbol: str, side: str, entry_price: float, exit_price: float, pnl_pct: float, pnl_usdt: float, strategy: str = "Manual", close_time_ms: int = None):
         """
         노션 데이터베이스에 1줄의 매매 기록을 추가합니다.
         """
         if not self.is_configured():
             return False
+
+        # 중복 기록 방지 체크
+        if self._check_duplicate(symbol, pnl_usdt):
+            print(f"⏭️ 아이린: 동일한 거래가 이미 노션에 기록되어 있어 스킵합니다. ({symbol}, PnL: {pnl_usdt} USDT)")
+            return True
 
         try:
             # 시간 처리 (기본값은 현재 KST)

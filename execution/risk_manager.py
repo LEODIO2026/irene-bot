@@ -10,7 +10,12 @@ class RiskManager:
         - stop_loss_price: 무효화 지점 (손절 가격)
         """
         if entry_price == stop_loss_price:
-            return 0
+            return {
+                'risk_amount': 0.0,
+                'position_qty': 0.0,
+                'required_leverage': 1.0,
+                'stop_loss_pct': 0.0
+            }
             
         # 1회 거래당 감수할 달러 리스크
         risk_amount = balance * self.risk_per_trade
@@ -21,7 +26,12 @@ class RiskManager:
         # 포지션 수량 (Quantity)
         # Position Size (Qty) = Risk Amount / (Price Diff)
         if price_diff_percent == 0:
-            return 0
+            return {
+                'risk_amount': 0.0,
+                'position_qty': 0.0,
+                'required_leverage': 1.0,
+                'stop_loss_pct': 0.0
+            }
             
         position_qty = risk_amount / abs(entry_price - stop_loss_price)
         
