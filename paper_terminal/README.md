@@ -14,6 +14,10 @@ python -m paper_terminal --source sim    # 지어낸 가상 시장 (화면 구�
 ```
 
 브라우저에서 <http://127.0.0.1:9191> 을 엽니다.
+
+**맥에서는** 저장소 폴더의 `start_paper_terminal.command` 파일을 더블클릭하면
+준비부터 실행, 브라우저 열기까지 한 번에 됩니다. (처음에 "확인되지 않은 개발자" 경고가 뜨면
+파일을 오른쪽 클릭 → 열기)
 NAS에서 띄우려면: `docker-compose -f docker-compose.paper.yml up -d`
 
 ## 여섯 에이전트

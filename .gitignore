@@ -49,3 +49,4 @@ scratch/
 # 모의거래 터미널 기록
 *.db
 *.db-journal
+.venv-paper/
