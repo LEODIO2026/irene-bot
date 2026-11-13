@@ -71,8 +71,27 @@ class Scanner(Agent):
                 f'5분 거래량 ${s.vol_m5:,.0f} (1시간 평균의 {mult:.1f}배), '
                 f'매수/매도 {s.buys_m5}/{s.sells_m5}건, 5분 가격 {s.chg_m5:+.1f}%')))
         out.sort(key=lambda x: -x.snap.vol_m5)
+        self.top = [self._chip(s) for s in sorted(
+            (s for s in snaps.values() if s.age_minutes(now) <= c.max_pair_age_hours * 60),
+            key=lambda s: -s.vol_m5)[:4]]
         self.note(now, f'{len(snaps)}개 토큰 확인 → 신호 {len(out)}개', bump=len(out))
         return out
+
+
+    top = ()
+
+    @staticmethod
+    def _chip(s):
+        avg5 = s.vol_h1 / 12 if s.vol_h1 else 0
+        mult = s.vol_m5 / avg5 if avg5 else 0
+        total = s.buys_m5 + s.sells_m5
+        if mult >= 1.5:
+            tag = f'거래량 {mult:.1f}×'
+        elif total:
+            tag = f'매수 {s.buys_m5 / total:.0%}'
+        else:
+            tag = '거래 없음'
+        return dict(symbol=s.symbol, tag=tag)
 
 
 # ─────────────────────────── 2. 러그 체크 ───────────────────────────
@@ -130,6 +149,8 @@ class Sizer(Agent):
     def __init__(self, cfg):
         super().__init__()
         self.cfg = cfg
+        self.skipped = 0
+        self.last_pct = None
 
     def size(self, now, s, equity, cash, n_open, start_balance):
         """(금액, 이유). 금액이 0이면 진입하지 않는다."""
@@ -149,10 +170,12 @@ class Sizer(Agent):
         if amount < c.min_ticket:
             return self._skip(now, s, f'계산된 크기 ${max(amount, 0):.2f} < 최소 ${c.min_ticket:.2f} — 수수료가 더 큼')
         why = f'자산 ${equity:,.2f} 기준 ${amount:,.2f} ({label})'
+        self.last_pct = amount / equity * 100
         self.note(now, f'{s.symbol}: {why}'[:90], bump=1)
         return round(amount, 2), why
 
     def _skip(self, now, s, why):
+        self.skipped += 1
         self.note(now, f'{s.symbol}: 건너뜀 — {why}'[:90])
         return 0.0, why
 

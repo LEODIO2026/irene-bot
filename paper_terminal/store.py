@@ -62,6 +62,9 @@ class Store:
     def events(self, limit=80):
         return self._rows('SELECT * FROM events ORDER BY id DESC LIMIT ?', (limit,))
 
+    def count_events(self):
+        return self._rows('SELECT COUNT(*) AS n FROM events')[0]['n']
+
     # ── 수익 곡선 ──
     def add_equity(self, ts, equity, cash, note):
         self._exec('INSERT INTO equity(ts,equity,cash,note) VALUES(?,?,?,?)', (ts, equity, cash, note))
@@ -85,6 +88,10 @@ class Store:
 
     def closed_trades(self, limit=100):
         return self._rows("SELECT * FROM trades WHERE status='closed' ORDER BY closed_at DESC, id DESC LIMIT ?", (limit,))
+
+    def last_trade(self):
+        rows = self._rows('SELECT * FROM trades ORDER BY MAX(opened_at, COALESCE(closed_at, 0)) DESC, id DESC LIMIT 1')
+        return rows[0] if rows else None
 
     def all_closed(self):
         return self._rows("SELECT pnl_usd, entry_fee, exit_fee FROM trades WHERE status='closed' ORDER BY id")

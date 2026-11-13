@@ -26,6 +26,7 @@ class Engine:
         self.curve = EquityCurve(self.store)
         self.agents = [self.scanner, self.rug, self.sizer, self.executor, self.logger, self.curve]
         self.cooldown = {}      # token -> 다시 볼 수 있는 시각
+        self.spark = {}         # token -> 보유 중 가격 기록 (화면의 작은 그래프용)
         self.paused = False
         self.ticks = 0
         self.last_tick = None
@@ -58,6 +59,8 @@ class Engine:
         with self.tick_lock:
             self.store.reset()
             self.cooldown.clear()
+            self.spark.clear()
+            self.sizer.skipped, self.sizer.last_pct, self.scanner.top = 0, None, ()
             for a in self.agents:
                 a.status, a.last_ts, a.count = '대기 중', None, 0
             self.rug.passed = 0
@@ -89,6 +92,7 @@ class Engine:
                 if missing >= self.cfg.missing_polls_exit:
                     self._close(now, t, 0.0, 0.0, f'{missing}회 연속 시세 없음 — 러그/상장폐지로 보고 전액 손실 처리')
                 continue
+            self.spark[t['token']] = (self.spark.get(t['token'], []) + [s.price])[-80:]
             reason = self.executor.exit_reason(now, t, s)
             self.store.update_trade(t['id'], last_price=s.price, last_liq=s.liquidity, missing=0,
                                     peak_price=max(t['peak_price'], s.price))
@@ -99,7 +103,8 @@ class Engine:
         pnl, slip = self.executor.close(now, t, price, liquidity, reason)
         self.cooldown[t['token']] = now + self.cfg.cooldown_minutes * 60
         self.logger.log(now, 'executor', 'win' if pnl > 0 else 'loss', t['symbol'],
-                        f'매도 {pnl:+.2f}$ — {reason}', dict(trade_id=t['id'], slip_bps=round(slip)))
+                        f'매도 {pnl:+.2f}$ — {reason}',
+                        dict(trade_id=t['id'], slip_bps=round(slip), pnl=pnl, reason=reason))
         equity, cash = self.equity()
         self.curve.record(now, equity, cash, f'{t["symbol"]} 청산 {pnl:+.2f}$')
 
@@ -112,19 +117,21 @@ class Engine:
             self.logger.log(now, 'scanner', 'info', s.symbol, f'신호 포착 — {cand.reason}')
             ok, why = self.rug.check(now, s)
             if not ok:
-                self.logger.log(now, 'rug', 'block', s.symbol, f'차단 — {why}')
+                self.logger.log(now, 'rug', 'block', s.symbol, f'차단 — {why}', dict(reason=why))
                 continue
             self.logger.log(now, 'rug', 'info', s.symbol, f'통과 — {why}')
             equity, cash = self.equity()
             size, size_why = self.sizer.size(now, s, equity, cash, len(self.store.open_trades()), self.start_balance)
             if size <= 0:
-                self.logger.log(now, 'sizer', 'skip', s.symbol, f'건너뜀 — {size_why}')
+                self.logger.log(now, 'sizer', 'skip', s.symbol, f'건너뜀 — {size_why}', dict(reason=size_why))
                 continue
             self.logger.log(now, 'sizer', 'info', s.symbol, size_why)
             tid, slip = self.executor.open(now, s, size, cand.reason, why, size_why)
             self.logger.log(now, 'executor', 'buy', s.symbol,
                             f'매수 ${size:.2f} @ ${s.price:.8g} (슬리피지 {slip:.0f}bps) — {cand.reason}',
-                            dict(trade_id=tid))
+                            dict(trade_id=tid, size=size, pct=size / equity * 100, reason=cand.reason))
+            self.spark = {k: v for k, v in list(self.spark.items())[-11:]}
+            self.spark[s.token] = [s.price]
 
     # ── 반복 실행 ──
     def run_forever(self):
@@ -136,6 +143,18 @@ class Engine:
                 self.last_error = str(e)
                 traceback.print_exc()
             time.sleep(self.cfg.poll_seconds)
+
+    def _focus(self):
+        """화면 가운데에 크게 보여줄 가장 최근 거래."""
+        t = self.store.last_trade()
+        if not t:
+            return None
+        if t['status'] == 'open':
+            value = self.executor.sell_value(t['qty'], t['last_price'], t['last_liq'])[0]
+            cost = t['size_usd'] + self.cfg.network_fee
+            t.update(pnl_usd=value - cost, pnl_pct=(value - cost) / cost * 100)
+        t['spark'] = self.spark.get(t['token'], [])
+        return t
 
     # ── 대시보드용 상태 ──
     def state(self):
@@ -152,7 +171,10 @@ class Engine:
             poll_seconds=self.cfg.poll_seconds, started_at=self.store.get('started_at'),
             start_balance=start, equity=equity, cash=cash,
             pnl_usd=equity - start, pnl_pct=(equity / start - 1) * 100 if start else 0,
-            stats=self.curve.stats(start), rug_passed=self.rug.passed,
+            stats=self.curve.stats(start), rug_passed=self.rug.passed, rug_blocked=self.rug.count,
+            sizer_skipped=self.sizer.skipped, sizer_pct=self.sizer.last_pct,
+            log_lines=self.store.count_events(), candidates=list(self.scanner.top),
+            focus=self._focus(),
             agents=[a.view() for a in self.agents],
             open=opens, closed=self.store.closed_trades(50),
             events=self.store.events(80), curve=self.store.equity_points())

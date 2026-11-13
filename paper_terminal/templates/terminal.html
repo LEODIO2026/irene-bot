@@ -6,242 +6,445 @@
 <title>아이린 모의거래 터미널</title>
 <style>
 :root {
-  --bg: #0a0f1a; --panel: #111827; --panel2: #0e1524; --line: #1f2a3d;
-  --ink: #e8edf5; --sub: #9aa7bb; --mute: #66738a;
-  --accent: #5b9dff; --good: #2fbf8f; --bad: #f0616d; --warn: #e0a83a;
-  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --bg: #07090d; --win: #0d1016; --panel: #12161d; --panel2: #0a0d12; --line: #1e242e; --line2: #2a323f;
+  --ink: #f2f4f8; --sub: #a3adbd; --mute: #6b7586;
+  --yellow: #f2d24b; --red: #ff4d6d; --purple: #a78bfa; --cyan: #4fe3d0; --orange: #fb923c; --blue: #5b9dff;
+  --good: #3ddc97; --bad: #ff4d6d;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --sans: -apple-system, "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", sans-serif;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--bg); color: var(--ink); font: 14px/1.5 -apple-system, "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", sans-serif; padding: 16px; }
-.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
-header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 14px; }
-h1 { font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
-.badge { font: 700 11px var(--mono); letter-spacing: .08em; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--warn); color: var(--warn); }
-.meta { color: var(--sub); font-size: 12px; }
-.spacer { flex: 1; }
-button { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; }
-button:hover { border-color: var(--accent); }
-.notice { background: var(--panel2); border: 1px solid var(--line); border-left: 3px solid var(--warn); border-radius: 6px; padding: 8px 12px; color: var(--sub); font-size: 12.5px; margin-bottom: 14px; }
-.err { border-left-color: var(--bad); color: var(--ink); display: none; }
+body { background: var(--bg); color: var(--ink); font: 13px/1.5 var(--sans); padding: 18px; }
+.mono, .lbl, .chip, .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.lbl { font-size: 10.5px; letter-spacing: .12em; color: var(--mute); text-transform: uppercase; }
+.win { max-width: 1180px; margin: 0 auto; background: var(--win); border: 1px solid var(--line2); border-radius: 14px; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.5); }
 
-.kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 14px; }
-.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; min-width: 0; }
-.kpi .label { color: var(--sub); font-size: 12px; }
-.kpi .value { font: 600 22px var(--mono); font-variant-numeric: tabular-nums; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.kpi .hint { color: var(--mute); font-size: 11.5px; margin-top: 2px; }
-.kpi.hero .value { font-size: 26px; }
+/* 창 머리 */
+.chrome { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--line); }
+.dots { display: flex; gap: 6px; } .dots i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+.chrome .title { flex: 1; text-align: center; color: var(--mute); font: 11px var(--mono); letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .08em; padding: 2px 7px; border-radius: 4px; border: 1px solid var(--line2); color: var(--sub); white-space: nowrap; }
+.chip.paper { border-color: var(--good); color: var(--good); }
 
-.agents { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 14px; }
-.agent { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-width: 0; }
-.agent .top { display: flex; align-items: center; gap: 6px; }
-.agent .n { font: 700 11px var(--mono); color: var(--mute); }
-.agent .name { font-weight: 700; }
-.agent .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--mute); margin-left: auto; flex: none; }
-.agent .dot.on { background: var(--good); }
-.agent .job { color: var(--mute); font-size: 11.5px; margin: 2px 0 6px; }
-.agent .status { color: var(--sub); font-size: 12px; min-height: 36px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-all; }
-.agent .foot { color: var(--mute); font-size: 11px; margin-top: 4px; }
+/* 머리말 */
+.hero { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 22px; padding: 20px 22px 18px; border-bottom: 1px solid var(--line); }
+.avatar { width: 74px; height: 74px; border-radius: 50%; flex: none; background: radial-gradient(circle at 35% 30%, #fff, #c9d2e0 70%); display: grid; place-items: center; }
+.avatar svg { width: 44px; height: 44px; }
+.who { flex: 1 1 320px; min-width: 0; }
+.who h1 { font-size: 26px; font-weight: 800; letter-spacing: -.02em; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.who .ver { border-color: var(--yellow); color: var(--yellow); }
+.run { margin-top: 4px; font: 600 13px var(--mono); color: var(--yellow); display: flex; align-items: center; gap: 8px; }
+.run i { width: 8px; height: 8px; border-radius: 50%; background: var(--yellow); display: block; }
+.run.paused { color: var(--mute); } .run.paused i { background: var(--mute); }
+.last { margin-top: 7px; } .last .chip { border-color: var(--cyan); color: var(--cyan); max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.tag { margin-top: 6px; color: var(--mute); font: 11.5px var(--mono); }
+.stats { display: grid; grid-template-columns: auto auto; gap: 6px 44px; }
+.stat .v { font: 700 28px/1.1 var(--mono); font-variant-numeric: tabular-nums; }
+.stat .v.small { color: var(--sub); }
+.stat .v.up { color: var(--good); } .stat .v.dn { color: var(--bad); }
+.actions { display: flex; gap: 8px; width: 100%; justify-content: flex-end; margin-top: -4px; }
+button { background: transparent; color: var(--sub); border: 1px solid var(--line2); border-radius: 6px; padding: 5px 11px; font: 12px var(--sans); cursor: pointer; }
+button:hover { border-color: var(--cyan); color: var(--ink); }
+.notice { margin: 12px 14px 0; background: var(--panel2); border: 1px solid var(--line); border-left: 3px solid var(--yellow); border-radius: 6px; padding: 7px 12px; color: var(--sub); font-size: 12px; }
+.notice.err { border-left-color: var(--bad); color: var(--ink); }
 
-.cols { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 14px; align-items: start; }
-.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; margin-bottom: 14px; min-width: 0; }
-.panel h2 { font-size: 13.5px; font-weight: 700; margin-bottom: 2px; }
-.panel .desc { color: var(--mute); font-size: 12px; margin-bottom: 10px; }
-.chartwrap { position: relative; }
-svg { display: block; width: 100%; height: 240px; }
-.tip { position: absolute; pointer-events: none; background: #0b1220; border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; font-size: 12px; display: none; white-space: nowrap; z-index: 2; }
+/* 본문 */
+.body { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 14px; padding: 14px; }
+.head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; gap: 8px; }
+.agent { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; margin-bottom: 9px; --c: var(--sub); transition: box-shadow .3s, border-color .3s; }
+.agent.hot { border-color: var(--c); box-shadow: 0 0 0 1px var(--c), 0 0 22px -6px var(--c); }
+.agent .top { display: flex; align-items: center; gap: 9px; }
+.ico { width: 28px; height: 28px; border-radius: 7px; background: color-mix(in srgb, var(--c) 16%, transparent); display: grid; place-items: center; flex: none; }
+.ico svg { width: 16px; height: 16px; fill: var(--c); }
+.agent .name { font-weight: 800; font-size: 14px; letter-spacing: .01em; }
+.agent .chip { margin-left: auto; border-color: var(--c); color: var(--c); }
+.agent .chip.idle { border-color: var(--line2); color: var(--mute); }
+.agent .job { color: var(--sub); font-size: 11.5px; margin: 1px 0 7px 37px; }
+.agent .motto { color: var(--c); font-size: 12px; font-weight: 600; }
+.agent .status { color: var(--mute); font: 11px var(--mono); margin-top: 3px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-all; }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; min-width: 0; }
+.cands { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.cand { border: 1px solid var(--c); border-radius: 7px; padding: 6px 9px; background: var(--panel2); min-width: 0; position: relative; }
+.cand b { font: 700 13px var(--mono); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 12px; }
+.cand span { color: var(--sub); font: 11px var(--mono); }
+.cand i { position: absolute; top: 9px; right: 8px; width: 6px; height: 6px; border-radius: 50%; background: var(--c); }
+.cand.none { border-style: dashed; border-color: var(--line2); }
+.flow { display: block; width: 100%; height: auto; margin: 2px 0; }
+.dash { stroke-dasharray: 3 6; animation: march 1.2s linear infinite; }
+@keyframes march { to { stroke-dashoffset: -18; } }
+@keyframes blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .dash, .cursor { animation: none !important; } }
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.tile { border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); border-radius: 8px; padding: 7px 10px; background: var(--panel2); min-width: 0; }
+.tile .lbl { color: var(--c); display: flex; align-items: center; gap: 5px; }
+.tile .lbl svg { width: 10px; height: 10px; fill: var(--c); }
+.tile .v { font: 700 18px/1.3 var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile .h { color: var(--mute); font: 10.5px var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.two .panel { margin-bottom: 12px; }
+.sym { font: 800 20px var(--mono); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sym a { color: var(--ink); text-decoration: none; } .sym a:hover { text-decoration: underline; }
+.sym .pnl { margin-left: auto; font-size: 14px; font-weight: 700; }
+.kv { display: grid; grid-template-columns: 52px 1fr; gap: 1px 8px; font: 12px var(--mono); margin-top: 6px; }
+.kv dt { color: var(--mute); } .kv dd { color: var(--ink); word-break: break-word; }
+.why { font: 11.5px var(--mono); color: var(--sub); margin-top: 6px; word-break: break-word; }
+.why b { color: var(--orange); font-weight: 700; }
+.term { background: #05070a; font: 11.5px/1.55 var(--mono); }
+.term .cmd { color: var(--good); font-weight: 700; }
+.term .ln { display: grid; grid-template-columns: 62px 1fr; white-space: nowrap; overflow: hidden; }
+.term .ln span:last-child { overflow: hidden; text-overflow: ellipsis; }
+.term .ln .t { color: var(--mute); }
+.term .sub { color: var(--mute); padding-left: 62px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cursor { display: inline-block; width: 7px; height: 13px; background: var(--good); vertical-align: -2px; animation: blink 1s steps(1) infinite; }
+.c-good { color: var(--good); } .c-bad { color: var(--bad); } .c-cyan { color: var(--cyan); } .c-mute { color: var(--mute); } .c-yellow { color: var(--yellow); }
+
+.bars { display: grid; grid-template-columns: 52px 1fr auto; gap: 6px 12px; align-items: center; font-family: var(--mono); }
+.bars .track { height: 6px; border-radius: 3px; background: var(--panel2); overflow: hidden; }
+.bars .fill { height: 100%; border-radius: 3px; min-width: 6px; transition: width .6s; }
+.bars .amt { font-weight: 700; font-size: 15px; text-align: right; }
+.wl { font: 700 12px var(--mono); margin: 6px 0 2px 64px; }
+.chartwrap { position: relative; margin-top: 8px; }
+#chart { display: block; width: 100%; height: 170px; }
+.tip { position: absolute; pointer-events: none; background: #05070a; border: 1px solid var(--line2); border-radius: 6px; padding: 6px 9px; font-size: 12px; display: none; white-space: nowrap; z-index: 2; }
 .tip b { font-family: var(--mono); }
-.scroll { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-th { text-align: left; color: var(--mute); font-weight: 500; padding: 5px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-td.r, th.r { text-align: right; white-space: nowrap; }
-td.why { color: var(--sub); min-width: 220px; }
-tr:last-child td { border-bottom: 0; }
-a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--mute); }
-.up { color: var(--good); } .down { color: var(--bad); }
-.empty { color: var(--mute); padding: 18px 0; text-align: center; font-size: 12.5px; }
-.feed { max-height: 760px; overflow-y: auto; }
-.ev { display: grid; grid-template-columns: 62px 1fr; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 12.5px; }
-.ev:last-child { border-bottom: 0; }
-.ev .t { color: var(--mute); font-family: var(--mono); font-size: 11.5px; padding-top: 1px; }
-.ev .tag { display: inline-block; font-size: 11px; font-weight: 700; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-right: 6px; color: var(--sub); }
-.ev .sym { font-weight: 700; margin-right: 4px; }
-.ev .msg { color: var(--sub); word-break: break-word; }
-.ev.buy .tag, .ev.win .tag { border-color: var(--good); color: var(--good); }
-.ev.loss .tag, .ev.block .tag { border-color: var(--bad); color: var(--bad); }
-.ev.warn .tag, .ev.skip .tag { border-color: var(--warn); color: var(--warn); }
 
-@media (max-width: 1100px) { .kpis, .agents { grid-template-columns: repeat(3, 1fr); } .cols { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 560px) { body { padding: 10px; } .kpis, .agents { grid-template-columns: repeat(2, 1fr); } .kpi .value { font-size: 18px; } .kpi.hero .value { font-size: 20px; } }
+.row { display: grid; grid-template-columns: 62px 78px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 7px 8px; border-left: 2px solid transparent; border-radius: 4px; }
+.row + .row { border-top: 1px solid var(--line); }
+.row.new { background: linear-gradient(90deg, color-mix(in srgb, var(--cyan) 14%, transparent), transparent); border-left-color: var(--cyan); }
+.row .t { color: var(--mute); font: 12px var(--mono); padding-top: 2px; }
+.row .chip { text-align: center; margin-top: 1px; }
+.chip.enter { border-color: var(--good); color: var(--good); background: color-mix(in srgb, var(--good) 12%, transparent); }
+.chip.exit { border-color: var(--cyan); color: var(--cyan); background: color-mix(in srgb, var(--cyan) 10%, transparent); }
+.chip.filtered { border-color: var(--red); color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent); }
+.chip.skip, .chip.warn { border-color: var(--yellow); color: var(--yellow); }
+.row .s { font: 800 13.5px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .r { font: 11.5px var(--mono); color: var(--sub); word-break: break-word; }
+.row .r b { color: var(--orange); }
+.row .val { font: 700 13px var(--mono); white-space: nowrap; text-align: right; padding-top: 1px; }
+.logs { max-height: 520px; overflow-y: auto; }
+.empty { color: var(--mute); padding: 14px 0; text-align: center; font-size: 12px; }
+.scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th { text-align: left; color: var(--mute); font: 500 10.5px var(--mono); letter-spacing: .06em; padding: 5px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.n, th.n { text-align: right; white-space: nowrap; font-family: var(--mono); }
+td.y { color: var(--sub); min-width: 220px; font-size: 11.5px; }
+tr:last-child td { border-bottom: 0; }
+td a { color: var(--ink); }
+h3 { font: 700 12px var(--sans); color: var(--sub); margin: 10px 0 4px; } h3:first-of-type { margin-top: 0; }
+
+@media (max-width: 860px) {
+  body { padding: 8px; } .body { grid-template-columns: minmax(0, 1fr); }
+  .agents-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .agent { margin: 0; }
+  .two { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .who h1 { font-size: 21px; } .stat .v { font-size: 22px; } .hero { padding: 16px 14px; } .chrome .title { text-align: left; }
+}
+@media (max-width: 520px) {
+  .cands, .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .row { grid-template-columns: 54px minmax(0, 1fr) auto; } .row .chip { grid-column: 2; grid-row: 1; justify-self: start; } .row .mid { grid-column: 2 / 4; grid-row: 2; } .row .val { grid-column: 3; grid-row: 1; }
+  .avatar { width: 54px; height: 54px; } .avatar svg { width: 32px; height: 32px; }
+}
 </style>
 </head>
 <body>
-<header>
-  <h1>아이린 모의거래 터미널</h1>
-  <span class="badge">PAPER · 모의거래</span>
-  <span class="meta" id="meta">연결 중…</span>
-  <span class="spacer"></span>
-  <button id="pauseBtn">신규 진입 멈춤</button>
-  <button id="resetBtn">처음부터 다시</button>
-</header>
-<div class="notice">가상 잔고로만 거래하는 연습용 화면이에요. 실제 주문은 어디에도 나가지 않고, 지갑·개인키·API 키도 쓰지 않아요. 체결가에는 가격 충격·DEX 수수료·네트워크 수수료가 반영돼 있어요.</div>
-<div class="notice" id="simNote" style="display:none">지금은 <b>지어낸 가상 시장</b>으로 돌아가는 중이에요. 화면과 동작을 구경하기 위한 것이라, 여기서 나온 수익·손실은 실제 시장에서의 성과와 아무 관련이 없어요.</div>
-<div class="notice err" id="err"></div>
-
-<section class="kpis" id="kpis"></section>
-<section class="agents" id="agents"></section>
-
-<div class="cols">
-  <div>
-    <div class="panel">
-      <h2>수익 곡선</h2>
-      <div class="desc">거래가 하나 끝날 때마다 점이 찍혀요. 점선은 시작 잔고예요.</div>
-      <div class="chartwrap"><svg id="chart" role="img" aria-label="자산 변화 그래프"></svg><div class="tip" id="tip"></div></div>
-    </div>
-    <div class="panel">
-      <h2>보유 중인 포지션</h2>
-      <div class="desc">평가 금액은 "지금 팔면 실제로 손에 쥐는 돈" 기준이에요.</div>
-      <div class="scroll" id="open"></div>
-    </div>
-    <div class="panel">
-      <h2>끝난 거래</h2>
-      <div class="desc">모든 거래에 산 이유와 판 이유가 남아요.</div>
-      <div class="scroll" id="closed"></div>
-    </div>
+<div class="win">
+  <div class="chrome">
+    <span class="dots"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></span>
+    <span class="title" id="winTitle">Irene Paper Terminal — six agents · log first</span>
+    <span class="chip paper">PAPER · 모의거래</span>
   </div>
-  <div class="panel">
-    <h2>활동 로그</h2>
-    <div class="desc">에이전트들이 내린 판단과 그 이유 (최근 80건)</div>
-    <div class="feed" id="feed"></div>
+
+  <div class="hero">
+    <div class="avatar" aria-hidden="true"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="17" fill="none" stroke="#0d1016" stroke-width="5"/><circle cx="22" cy="22" r="6" fill="#0d1016"/></svg></div>
+    <div class="who">
+      <h1>Irene Paper Terminal <span class="chip ver">v1.0</span></h1>
+      <div class="run" id="run"><i></i><span id="runText">연결 중…</span></div>
+      <div class="last"><span class="chip" id="lastAct">대기 중</span></div>
+      <div class="tag">모든 거래에는 이유가 남아요 · 실제 돈은 쓰지 않아요</div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="v" id="sBal">–</div><div class="lbl">자산 (가상)</div></div>
+      <div class="stat"><div class="v small" id="sTrades">–</div><div class="lbl">거래</div></div>
+      <div class="stat"><div class="v up" id="sWins">–</div><div class="lbl">수익</div></div>
+      <div class="stat"><div class="v dn" id="sLosses">–</div><div class="lbl">손실</div></div>
+    </div>
+    <div class="actions"><button id="pauseBtn">신규 진입 멈춤</button><button id="resetBtn">처음부터 다시</button></div>
+  </div>
+
+  <div class="notice" id="simNote" style="display:none">지금은 <b>지어낸 가상 시장</b>으로 돌아가는 중이에요. 화면을 구경하기 위한 것이라, 여기서 나온 수익·손실은 실제 시장 성과와 아무 관련이 없어요.</div>
+  <div class="notice err" id="err" style="display:none"></div>
+
+  <div class="body">
+    <aside>
+      <div class="head"><span class="lbl">Agents</span><span class="lbl" id="online">–</span></div>
+      <div class="agents-list" id="agents"></div>
+    </aside>
+
+    <main>
+      <div class="panel">
+        <div class="head"><span class="lbl">Live flow · scan → check → size → exec → log</span><span class="lbl" id="checked">–</span></div>
+        <div class="cands" id="cands"></div>
+        <svg class="flow" id="flow" viewBox="0 0 640 132" role="img" aria-label="스캐너에서 러그 체크, 실행기로 이어지는 흐름"></svg>
+        <div class="tiles" id="tiles"></div>
+      </div>
+
+      <div class="two">
+        <div class="panel">
+          <div class="head"><span class="lbl">Trade · entry vs exit</span><span class="chip" id="tState">–</span></div>
+          <div id="trade"></div>
+        </div>
+        <div class="panel term">
+          <div class="head"><span class="cmd">$ tail -f paper.log</span><span class="lbl" id="lines">–</span></div>
+          <div id="tail"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="head"><span class="lbl">Result · start vs now</span><span class="lbl" id="span">–</span></div>
+        <div class="bars" id="bars"></div>
+        <div class="wl" id="wl"></div>
+        <div class="chartwrap"><svg id="chart" role="img" aria-label="자산 변화 그래프"></svg><div class="tip" id="tip"></div></div>
+      </div>
+
+      <div class="panel">
+        <div class="head"><span class="lbl">Log</span><span class="lbl">판단과 그 이유</span></div>
+        <div class="logs" id="log"></div>
+      </div>
+
+      <div class="panel">
+        <div class="head"><span class="lbl">All trades</span><span class="lbl">평가는 "지금 팔면 받는 돈" 기준</span></div>
+        <h3>보유 중</h3><div class="scroll" id="open"></div>
+        <h3>끝난 거래</h3><div class="scroll" id="closed"></div>
+      </div>
+    </main>
   </div>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const usd = (v, d = 2) => v == null ? '–' : (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString('en-US', {minimumFractionDigits: d, maximumFractionDigits: d});
-const signed = (v, d = 2) => v == null ? '–' : (v >= 0 ? '+' : '-') + '$' + Math.abs(v).toLocaleString('en-US', {minimumFractionDigits: d, maximumFractionDigits: d});
+const fmt = (v, d = 2) => Math.abs(v).toLocaleString('en-US', {minimumFractionDigits: d, maximumFractionDigits: d});
+const usd = v => v == null ? '–' : (v < 0 ? '-$' : '$') + fmt(v);
+const signed = v => v == null ? '–' : (v >= 0 ? '+$' : '-$') + fmt(v);
 const pct = v => v == null ? '–' : (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
-const arrow = v => v > 0 ? '<span class="up">▲</span> ' : v < 0 ? '<span class="down">▼</span> ' : '';
-const clock = ts => ts ? new Date(ts * 1000).toLocaleTimeString('en-GB') : '–';
+const tone = v => v > 0 ? 'c-good' : v < 0 ? 'c-bad' : '';
+const arrow = v => v > 0 ? '▲ ' : v < 0 ? '▼ ' : '';
+const hms = ts => ts ? new Date(ts * 1000).toLocaleTimeString('en-GB') : '–';
+const hm = ts => hms(ts).slice(0, 5);
 const price = v => v == null ? '–' : '$' + Number(v).toPrecision(4);
-function ago(now, ts) {
-  if (!ts) return '아직 없음';
-  const s = Math.max(0, Math.round(now - ts));
-  return s < 60 ? s + '초 전' : s < 3600 ? Math.floor(s / 60) + '분 전' : Math.floor(s / 3600) + '시간 전';
+const tick = s => '$' + esc(s);
+const dur = sec => { sec = Math.max(0, Math.floor(sec)); const p = n => String(n).padStart(2, '0'); return `${p(Math.floor(sec / 3600))}:${p(Math.floor(sec / 60) % 60)}:${p(sec % 60)}`; };
+const hold = (a, b) => { const m = Math.max(0, Math.round((b - a) / 60)); return m < 60 ? m + '분' : Math.floor(m / 60) + '시간 ' + (m % 60) + '분'; };
+const link = t => /^https:\/\/dexscreener\.com\//.test(t.url || '') ? `<a href="${esc(t.url)}" target="_blank" rel="noopener noreferrer">${tick(t.symbol)}</a>` : tick(t.symbol);
+const parse = e => { try { return JSON.parse(e.data || '{}'); } catch (_) { return {}; } };
+
+const ICON = {
+  scanner: '<svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="3"/><rect x="5.2" y="5" width="1.8" height="6" rx=".9" fill="#12161d"/><rect x="9" y="5" width="1.8" height="6" rx=".9" fill="#12161d"/></svg>',
+  rug: '<svg viewBox="0 0 16 16"><path d="M8 1.5 15 14H1z"/><rect x="7.2" y="6" width="1.6" height="4" fill="#12161d"/><rect x="7.2" y="11" width="1.6" height="1.6" fill="#12161d"/></svg>',
+  sizer: '<svg viewBox="0 0 16 16"><path d="M8 1 15 8 8 15 1 8z"/></svg>',
+  executor: '<svg viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="3"/><circle cx="6" cy="8" r="1.3" fill="#12161d"/><circle cx="10" cy="8" r="1.3" fill="#12161d"/></svg>',
+  logger: '<svg viewBox="0 0 16 16"><path d="M8 1 14 4.5v7L8 15 2 11.5v-7z"/></svg>',
+  equity: '<svg viewBox="0 0 16 16"><path d="M8 1.5C11 5.5 13 7.8 13 10.2A5 5 0 0 1 3 10.2C3 7.8 5 5.5 8 1.5z"/></svg>',
+  you: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="7"/><rect x="5.6" y="5" width="1.6" height="6" rx=".8" fill="#12161d"/><rect x="8.8" y="5" width="1.6" height="6" rx=".8" fill="#12161d"/></svg>',
+};
+const COLOR = {scanner: 'var(--yellow)', rug: 'var(--red)', sizer: 'var(--purple)', executor: 'var(--cyan)', logger: 'var(--orange)', equity: 'var(--blue)', you: 'var(--ink)'};
+const EN = {scanner: 'SCANNER', rug: 'RUG CHECK', sizer: 'SIZER', executor: 'EXECUTOR', logger: 'LOGGER', equity: 'EQUITY', you: 'YOU'};
+const MOTTO = {scanner: '표시만 해요, 직접 거래는 안 해요', rug: '통과하기 전엔 아무것도 실행 안 돼요', sizer: '고정 금액으로 사지 않아요', executor: '모든 체결의 슬리피지를 기록해요', logger: '이유 없는 거래는 없어요', equity: '거래가 끝날 때마다 갱신돼요', you: '묻는 대신, 기록을 읽어요'};
+const KIND = {buy: ['ENTER', 'enter'], win: ['EXIT', 'exit'], loss: ['EXIT', 'exit'], block: ['FILTERED', 'filtered'], skip: ['SKIP', 'skip'], warn: ['WARN', 'warn']};
+
+let state = null, plot = null;
+
+function renderHero(s, decisive) {
+  $('sBal').textContent = usd(s.equity);
+  $('sTrades').textContent = s.stats.trades;
+  $('sWins').textContent = s.stats.wins;
+  $('sLosses').textContent = s.stats.trades - s.stats.wins;
+  $('run').className = 'run' + (s.paused ? ' paused' : '');
+  $('runText').textContent = (s.paused ? '진입 멈춤' : 'running') + ' · ' + dur(s.now - (s.started_at || s.now));
+  const e = decisive[0];
+  $('lastAct').textContent = e ? `${EN[e.agent] || e.agent} · ${KIND[e.level][0]} $${e.symbol}` : '첫 신호를 기다리는 중';
+  $('winTitle').textContent = `Irene Paper Terminal — ${s.source} · ${s.poll_seconds}초마다 확인`;
 }
-function hold(a, b) { const m = Math.max(0, Math.round((b - a) / 60)); return m < 60 ? m + '분' : Math.floor(m / 60) + '시간 ' + (m % 60) + '분'; }
-const link = t => /^https:\/\/dexscreener\.com\//.test(t.url || '') ? `<a href="${esc(t.url)}" target="_blank" rel="noopener noreferrer">${esc(t.symbol)}</a>` : `<b>${esc(t.symbol)}</b>`;
-const AGENT = {scanner: '스캐너', rug: '러그 체크', sizer: '사이저', executor: '실행기', logger: '로거', equity: '수익 곡선', system: '시스템'};
 
-let state = null;
+function renderAgents(s, lastEvent) {
+  const recent = a => a.last_ts && s.now - a.last_ts <= Math.max(s.poll_seconds * 2.5, 5);
+  const chip = a => {
+    if (a.key === 'executor') return s.open.length ? 'LIVE' : 'FLAT';
+    if (!recent(a)) return 'IDLE';
+    return {scanner: 'SCAN', rug: a.status.includes('차단') ? 'BLOCK' : 'PASS', sizer: a.status.includes('건너뜀') ? 'SKIP' : 'SIZE', logger: 'WRITE', equity: 'UPDATE'}[a.key];
+  };
+  const hot = lastEvent && s.now - lastEvent.ts <= Math.max(s.poll_seconds * 2.5, 5) ? lastEvent.agent : null;
+  const cards = s.agents.map(a => ({key: a.key, job: a.job, chip: chip(a), status: a.status, hot: a.key === hot}));
+  cards.push({key: 'you', job: '아침에 기록을 읽는 사람', chip: 'READING', status: `읽을 기록 ${s.log_lines}줄`, hot: false});
+  $('agents').innerHTML = cards.map(a => `<div class="agent ${a.hot ? 'hot' : ''}" style="--c:${COLOR[a.key]}">
+    <div class="top"><span class="ico">${ICON[a.key]}</span><span class="name">${EN[a.key]}</span><span class="chip ${a.chip === 'IDLE' || a.chip === 'FLAT' ? 'idle' : ''}">${a.chip}</span></div>
+    <div class="job">${esc(a.job)}</div><div class="motto">${MOTTO[a.key]}</div><div class="status">${esc(a.status)}</div></div>`).join('');
+  $('online').textContent = `${s.agents.length} online`;
+}
 
-function renderKpis(s) {
-  const st = s.stats;
-  const cells = [
-    ['hero', '현재 자산', usd(s.equity), `현금 ${usd(s.cash)}`],
-    ['', '시작 잔고', usd(s.start_balance), '가상 금액'],
-    ['', '총 손익', arrow(s.pnl_usd) + signed(s.pnl_usd), pct(s.pnl_pct)],
-    ['', '승률', st.win_rate == null ? '–' : st.win_rate.toFixed(0) + '%', `${st.trades}건 중 ${st.wins}건 수익`],
-    ['', '최대 낙폭', st.max_drawdown ? '-' + st.max_drawdown.toFixed(1) + '%' : '0.0%', '고점 대비 가장 크게 빠진 폭'],
-    ['', '낸 수수료', usd(st.fees), '수수료 합계 (끝난 거래)'],
+function renderFlow(s, decisive) {
+  const cols = ['var(--purple)', 'var(--orange)', 'var(--cyan)', 'var(--yellow)'];
+  const c = s.candidates.slice(0, 4);
+  $('cands').innerHTML = [0, 1, 2, 3].map(i => c[i]
+    ? `<div class="cand" style="--c:${cols[i]}"><i></i><b>${tick(c[i].symbol)}</b><span>${esc(c[i].tag)}</span></div>`
+    : `<div class="cand none"><b class="c-mute">–</b><span>후보 없음</span></div>`).join('');
+  $('checked').textContent = `확인 ${s.ticks}회`;
+
+  const f = s.focus, live = f && f.status === 'open', RX = 150, EX = 490, NY = 62;
+  const blocked = decisive[0] && decisive[0].level === 'block' && s.now - decisive[0].ts <= Math.max(s.poll_seconds * 3, 8) ? decisive[0] : null;
+  let g = '';
+  [80, 240, 400, 560].forEach((x, i) => { g += `<path class="${c[i] ? 'dash' : ''}" d="M${x},0 L${RX},${NY}" stroke="#2a323f" fill="none"/>`; });
+  g += `<path class="dash" d="M${RX + 26},${NY} H${EX - 26}" stroke="${live ? '#4fe3d0' : '#2a323f'}" fill="none"/>`;
+  g += `<text x="${(RX + EX) / 2}" y="${NY + 16}" text-anchor="middle" fill="#6b7586" font-size="9.5" font-family="ui-monospace,Menlo,monospace">통과 → 크기 결정 → 진입</text>`;
+  g += `<path d="M${RX},${NY + 24} L80,132 M${RX},${NY + 24} L240,132 M${EX},${NY + 24} L400,132 M${EX},${NY + 24} L560,132" stroke="#1e242e" stroke-dasharray="2 5" fill="none"/>`;
+  // 가운데: 가장 최근 거래의 가격 흐름
+  if (f && f.spark && f.spark.length > 1) {
+    const lo = Math.min(...f.spark), hi = Math.max(...f.spark), x0 = RX + 50, x1 = EX - 50, y0 = 8, y1 = 40;
+    const px = i => x0 + i / (f.spark.length - 1) * (x1 - x0), py = v => hi === lo ? (y0 + y1) / 2 : y1 - (v - lo) / (hi - lo) * (y1 - y0);
+    const col = f.pnl_usd >= 0 ? '#3ddc97' : '#ff4d6d';
+    g += `<path d="${f.spark.map((v, i) => (i ? 'L' : 'M') + px(i).toFixed(1) + ',' + py(v).toFixed(1)).join('')}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    g += `<circle cx="${px(f.spark.length - 1)}" cy="${py(f.spark.at(-1))}" r="3" fill="${col}"/>`;
+  }
+  if (f) g += `<text x="${(RX + EX) / 2}" y="${NY - 8}" text-anchor="middle" fill="#a3adbd" font-size="10" font-family="ui-monospace,Menlo,monospace">${tick(f.symbol)} ${live ? '보유 중' : '청산됨'} ${esc(pct(f.pnl_pct))}</text>`;
+  const node = (x, col, on, glyph, l1, l2) => `<circle cx="${x}" cy="${NY}" r="24" fill="#0a0d12" stroke="${col}" stroke-width="${on ? 2.5 : 1.5}" ${on ? `style="filter:drop-shadow(0 0 8px ${col})"` : ''}/>${glyph}
+    <text x="${x}" y="${NY + 38}" text-anchor="middle" fill="${col}" font-size="9" font-weight="700" letter-spacing="1.2" font-family="ui-monospace,Menlo,monospace">${l1}</text>
+    <text x="${x}" y="${NY + 49}" text-anchor="middle" fill="#6b7586" font-size="9" font-family="ui-monospace,Menlo,monospace">${l2}</text>`;
+  g += node(RX, '#ff4d6d', !!blocked, `<path d="M${RX},${NY - 9} l9,16 h-18z" fill="#ff4d6d"/><rect x="${RX - .9}" y="${NY - 3}" width="1.8" height="5" fill="#0a0d12"/><rect x="${RX - .9}" y="${NY + 3.4}" width="1.8" height="1.8" fill="#0a0d12"/>`,
+    'RUG CHECK', blocked ? 'BLOCK ' + tick(blocked.symbol) : f ? 'PASS ' + tick(f.symbol) : '대기');
+  g += node(EX, '#4fe3d0', live, `<rect x="${EX - 9}" y="${NY - 7}" width="18" height="14" rx="4" fill="#4fe3d0"/><circle cx="${EX - 3.2}" cy="${NY}" r="1.6" fill="#0a0d12"/><circle cx="${EX + 3.2}" cy="${NY}" r="1.6" fill="#0a0d12"/>`,
+    'EXECUTOR', live ? 'LIVE ' + tick(f.symbol) : 'FLAT');
+  if (blocked) g += `<g transform="rotate(-9 ${RX - 60} ${NY - 30})"><rect x="${RX - 108}" y="${NY - 42}" width="76" height="20" rx="3" fill="#0a0d12" stroke="#ff4d6d" stroke-width="1.5"/><text x="${RX - 70}" y="${NY - 28}" text-anchor="middle" fill="#ff4d6d" font-size="10.5" font-weight="700" letter-spacing="1.5" font-family="ui-monospace,Menlo,monospace">FILTERED</text></g>`;
+  $('flow').innerHTML = g;
+
+  const lastClose = s.closed[0];
+  const tiles = [
+    ['rug', 'var(--red)', 'FILTERED', s.rug_blocked, `+ ${s.sizer_skipped}건 건너뜀`],
+    ['sizer', 'var(--purple)', 'SIZER', s.sizer_pct == null ? '–' : s.sizer_pct.toFixed(0) + '% eq', f ? `${usd(f.size_usd)} 투입` : '대기 중'],
+    ['logger', 'var(--orange)', 'LOGGER', 'line #' + s.log_lines, '줄마다 이유가 있어요'],
+    ['equity', 'var(--blue)', 'EQUITY', lastClose ? `<span class="${tone(lastClose.pnl_usd)}">${signed(lastClose.pnl_usd)}</span>` : '–', '마지막 청산'],
   ];
-  $('kpis').innerHTML = cells.map(([cls, l, v, h]) => `<div class="kpi ${cls}"><div class="label">${l}</div><div class="value">${v}</div><div class="hint">${h}</div></div>`).join('');
+  $('tiles').innerHTML = tiles.map(([k, c, l, v, h]) => `<div class="tile" style="--c:${c}"><div class="lbl">${ICON[k]}${l}</div><div class="v">${v}</div><div class="h">${h}</div></div>`).join('');
 }
 
-function renderAgents(s) {
-  $('agents').innerHTML = s.agents.map((a, i) => {
-    const live = a.last_ts && s.now - a.last_ts < Math.max(120, s.poll_seconds * 4);
-    return `<div class="agent"><div class="top"><span class="n">${i + 1}</span><span class="name">${esc(a.title)}</span><span class="dot ${live ? 'on' : ''}" title="${live ? '방금 일함' : '대기 중'}"></span></div>
-      <div class="job">${esc(a.job)}</div><div class="status">${esc(a.status)}</div>
-      <div class="foot">${ago(s.now, a.last_ts)} · 누적 ${a.count}건</div></div>`;
+function renderTrade(s) {
+  const f = s.focus;
+  if (!f) { $('tState').textContent = 'WAIT'; $('trade').innerHTML = '<div class="empty">아직 거래가 없어요.<br>조건에 맞는 토큰이 나오면 여기에 표시돼요.</div>'; return; }
+  const open = f.status === 'open';
+  $('tState').textContent = open ? 'OPEN' : 'CLOSED';
+  $('tState').className = 'chip ' + (open ? 'enter' : '');
+  $('trade').innerHTML = `<div class="sym">${link(f)} <span class="chip">LONG</span><span class="pnl ${tone(f.pnl_usd)}">${arrow(f.pnl_usd)}${open ? pct(f.pnl_pct) + ' live' : signed(f.pnl_usd)}</span></div>
+    <dl class="kv"><dt>entry</dt><dd>${price(f.entry_mid)}</dd><dt>exit</dt><dd>${open ? '<span class="c-cyan">open</span>' : price(f.exit_mid)}</dd>
+    <dt>slip</dt><dd>${(f.entry_slip_bps / 100).toFixed(2)}%${open ? '' : ' / ' + (f.exit_slip_bps / 100).toFixed(2) + '%'}</dd><dt>size</dt><dd>${usd(f.size_usd)}</dd></dl>
+    <div class="why"><b>reason:</b> ${esc(f.entry_reason)}</div><div class="why"><b>exit:</b> ${open ? '–' : esc(f.exit_reason)}</div>`;
+}
+
+function renderTail(s, decisive) {
+  $('lines').textContent = s.log_lines + ' lines';
+  const rows = decisive.slice(0, 5).reverse();
+  if (!rows.length) { $('tail').innerHTML = '<div class="c-mute">기록을 기다리는 중 <span class="cursor"></span></div>'; return; }
+  $('tail').innerHTML = rows.map((e, i) => {
+    const d = parse(e), [label] = KIND[e.level], cls = {buy: 'c-good', win: 'c-cyan', loss: 'c-cyan', block: 'c-bad', skip: 'c-yellow', warn: 'c-yellow'}[e.level];
+    const tailTxt = e.level === 'buy' ? `size ${d.pct != null ? d.pct.toFixed(0) + '%' : usd(d.size)}` : d.pnl != null ? `<span class="${tone(d.pnl)}">${signed(d.pnl)}</span>` : e.level === 'block' ? 'not traded' : '';
+    return `<div class="ln"><span class="t">${hm(e.ts)}</span><span><span class="${cls}">${label.padEnd(8, ' ').replace(/ /g, '&nbsp;')}</span> ${e.symbol ? tick(e.symbol) : ''} ${tailTxt}</span></div>
+      <div class="sub">${esc(d.reason || e.msg)}${i === rows.length - 1 ? ' <span class="cursor"></span>' : ''}</div>`;
   }).join('');
 }
 
-function renderOpen(s) {
-  if (!s.open.length) { $('open').innerHTML = '<div class="empty">지금은 보유 중인 포지션이 없어요.</div>'; return; }
-  $('open').innerHTML = `<table><thead><tr><th>토큰</th><th class="r">투입</th><th class="r">평가</th><th class="r">손익</th><th class="r">현재가</th><th class="r">보유</th><th>산 이유</th></tr></thead><tbody>` +
-    s.open.map(t => `<tr><td>${link(t)}</td><td class="r num">${usd(t.size_usd)}</td><td class="r num">${usd(t.value)}</td>
-      <td class="r num">${arrow(t.pnl_usd)}${signed(t.pnl_usd)} (${pct(t.pnl_pct)})</td><td class="r num">${price(t.last_price)}</td>
-      <td class="r">${hold(t.opened_at, s.now)}</td><td class="why">${esc(t.entry_reason)}<br>러그 체크: ${esc(t.rug_summary)}<br>크기: ${esc(t.size_reason)}</td></tr>`).join('') + '</tbody></table>';
+function renderResult(s) {
+  const max = Math.max(s.start_balance, s.equity, 0.01), st = s.stats;
+  $('bars').innerHTML = `<span class="lbl">Start</span><div class="track"><div class="fill" style="width:${s.start_balance / max * 100}%;background:#6b7586"></div></div><span class="amt c-mute">${usd(s.start_balance)}</span>
+    <span class="lbl">Now</span><div class="track"><div class="fill" style="width:${Math.max(s.equity, 0) / max * 100}%;background:${s.equity >= s.start_balance ? 'var(--cyan)' : 'var(--red)'}"></div></div><span class="amt">${usd(s.equity)}</span>`;
+  $('wl').innerHTML = `<span class="c-good">${st.wins} W</span> <span class="c-mute">/</span> <span class="c-bad">${st.trades - st.wins} L</span>
+    <span class="c-mute" style="font-weight:400"> · 손익 ${signed(s.pnl_usd)} (${pct(s.pnl_pct)}) · 최대 낙폭 -${st.max_drawdown.toFixed(1)}% · 수수료 ${usd(st.fees)}</span>`;
+  $('span').textContent = `${hm(s.started_at)} → ${hm(s.now)}`;
+  renderChart(s);
 }
 
-function renderClosed(s) {
-  if (!s.closed.length) { $('closed').innerHTML = '<div class="empty">아직 끝난 거래가 없어요. 조건에 맞는 토큰이 나타나면 여기에 기록돼요.</div>'; return; }
-  $('closed').innerHTML = `<table><thead><tr><th>시각</th><th>토큰</th><th class="r">투입</th><th class="r">손익</th><th class="r">슬리피지(매수/매도)</th><th class="r">보유</th><th>산 이유 → 판 이유</th></tr></thead><tbody>` +
-    s.closed.map(t => `<tr><td class="num">${clock(t.closed_at)}</td><td>${link(t)}</td><td class="r num">${usd(t.size_usd)}</td>
-      <td class="r num">${arrow(t.pnl_usd)}${signed(t.pnl_usd)} (${pct(t.pnl_pct)})</td>
-      <td class="r num">${Math.round(t.entry_slip_bps)} / ${Math.round(t.exit_slip_bps)} bps</td><td class="r">${hold(t.opened_at, t.closed_at)}</td>
-      <td class="why">${esc(t.entry_reason)}<br>→ ${esc(t.exit_reason)}</td></tr>`).join('') + '</tbody></table>';
-}
-
-function renderFeed(s) {
-  if (!s.events.length) { $('feed').innerHTML = '<div class="empty">아직 기록이 없어요.</div>'; return; }
-  $('feed').innerHTML = s.events.map(e => `<div class="ev ${esc(e.level)}"><div class="t">${clock(e.ts)}</div><div><span class="tag">${esc(AGENT[e.agent] || e.agent)}</span>${e.symbol ? `<span class="sym">${esc(e.symbol)}</span>` : ''}<span class="msg">${esc(e.msg)}</span></div></div>`).join('');
-}
-
-/* ── 수익 곡선: 거래가 끝날 때만 값이 바뀌므로 계단형 선 ── */
-let plot = null;
+/* 수익 곡선: 거래가 끝날 때만 값이 바뀌므로 계단형 선 */
 function renderChart(s) {
-  const svg = $('chart'), W = svg.clientWidth || 600, H = 240, m = {l: 58, r: 14, t: 12, b: 24};
+  const svg = $('chart'), W = svg.clientWidth || 600, H = 170, m = {l: 56, r: 12, t: 10, b: 20};
   const pts = s.curve.map(p => ({t: p.ts, v: p.equity, note: p.note})).concat([{t: Math.max(s.now, s.curve.at(-1)?.t ?? s.now), v: s.equity, note: '현재 (보유분 평가 포함)'}]);
   const t0 = pts[0].t, t1 = Math.max(pts.at(-1).t, t0 + 60);
   let lo = Math.min(s.start_balance, ...pts.map(p => p.v)), hi = Math.max(s.start_balance, ...pts.map(p => p.v));
   const pad = Math.max((hi - lo) * 0.15, hi * 0.01, 0.05); lo -= pad; hi += pad;
   const x = t => m.l + (t - t0) / (t1 - t0) * (W - m.l - m.r), y = v => m.t + (hi - v) / (hi - lo) * (H - m.t - m.b);
   let g = '';
-  for (let i = 0; i <= 4; i++) {
-    const v = lo + (hi - lo) * i / 4;
-    g += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" stroke="#1f2a3d"/><text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end" fill="#66738a" font-size="11" font-family="ui-monospace,Menlo,monospace">${usd(v)}</text>`;
+  for (let i = 0; i <= 3; i++) {
+    const v = lo + (hi - lo) * i / 3;
+    g += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" stroke="#1e242e"/><text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end" fill="#6b7586" font-size="10.5" font-family="ui-monospace,Menlo,monospace">${usd(v)}</text>`;
   }
-  g += `<text x="${m.l}" y="${H - 6}" fill="#66738a" font-size="11">${clock(t0)}</text><text x="${W - m.r}" y="${H - 6}" text-anchor="end" fill="#66738a" font-size="11">${clock(t1)}</text>`;
-  g += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(s.start_balance)}" y2="${y(s.start_balance)}" stroke="#9aa7bb" stroke-dasharray="4 4"/>`;
+  g += `<text x="${m.l}" y="${H - 4}" fill="#6b7586" font-size="10.5" font-family="ui-monospace,Menlo,monospace">${hms(t0)}</text><text x="${W - m.r}" y="${H - 4}" text-anchor="end" fill="#6b7586" font-size="10.5" font-family="ui-monospace,Menlo,monospace">${hms(t1)}</text>`;
+  g += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(s.start_balance)}" y2="${y(s.start_balance)}" stroke="#6b7586" stroke-dasharray="4 4"/>`;
   let d = `M${x(pts[0].t)},${y(pts[0].v)}`;
   for (let i = 1; i < pts.length; i++) d += `H${x(pts[i].t)}V${y(pts[i].v)}`;
   g += `<path d="${d}" fill="none" stroke="#5b9dff" stroke-width="2" stroke-linejoin="round"/>`;
-  const last = pts.at(-1);
-  g += `<circle cx="${x(last.t)}" cy="${y(last.v)}" r="4" fill="#5b9dff" stroke="#111827" stroke-width="2"/>`;
-  g += `<g id="cross" style="display:none"><line id="cx" y1="${m.t}" y2="${H - m.b}" stroke="#9aa7bb" stroke-width="1"/><circle id="cd" r="4.5" fill="#5b9dff" stroke="#111827" stroke-width="2"/></g>`;
+  g += `<circle cx="${x(pts.at(-1).t)}" cy="${y(pts.at(-1).v)}" r="4" fill="#5b9dff" stroke="#12161d" stroke-width="2"/>`;
+  g += `<g id="cross" style="display:none"><line id="cx" y1="${m.t}" y2="${H - m.b}" stroke="#a3adbd" stroke-width="1"/><circle id="cd" r="4.5" fill="#5b9dff" stroke="#12161d" stroke-width="2"/></g>`;
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.innerHTML = g;
   plot = {pts, x, y, W, m};
 }
-function hover(ev) {
+$('chart').addEventListener('pointermove', ev => {
   if (!plot) return;
   const r = $('chart').getBoundingClientRect(), px = (ev.clientX - r.left) * plot.W / r.width;
   let p = plot.pts[0];
-  for (const q of plot.pts) if (plot.x(q.t) <= px) p = q;   // 계단형: 커서 왼쪽의 마지막 점
+  for (const q of plot.pts) if (plot.x(q.t) <= px) p = q;
   const cx = Math.min(Math.max(px, plot.m.l), plot.W - plot.m.r);
   $('cross').style.display = '';
   $('cx').setAttribute('x1', cx); $('cx').setAttribute('x2', cx);
   $('cd').setAttribute('cx', cx); $('cd').setAttribute('cy', plot.y(p.v));
   const tip = $('tip');
-  tip.innerHTML = `<b>${usd(p.v)}</b><br>${esc(p.note)}<br><span style="color:#66738a">${clock(p.t)}</span>`;
+  tip.innerHTML = `<b>${usd(p.v)}</b><br>${esc(p.note)}<br><span class="c-mute">${hms(p.t)}</span>`;
   tip.style.display = 'block';
   const left = cx * r.width / plot.W;
   tip.style.left = (left > r.width / 2 ? left - tip.offsetWidth - 12 : left + 12) + 'px';
-  tip.style.top = '8px';
-}
-$('chart').addEventListener('pointermove', hover);
+  tip.style.top = '4px';
+});
 $('chart').addEventListener('pointerleave', () => { $('tip').style.display = 'none'; if ($('cross')) $('cross').style.display = 'none'; });
+
+function renderLog(decisive) {
+  if (!decisive.length) { $('log').innerHTML = '<div class="empty">아직 기록이 없어요. 스캐너가 신호를 찾으면 여기에 쌓여요.</div>'; return; }
+  $('log').innerHTML = decisive.map((e, i) => {
+    const d = parse(e), [label, cls] = KIND[e.level];
+    const val = e.level === 'buy' ? `<span class="c-cyan">size ${d.pct != null ? d.pct.toFixed(0) + '%' : usd(d.size)}</span>`
+      : d.pnl != null ? `<span class="${tone(d.pnl)}">${arrow(d.pnl)}${signed(d.pnl)}</span>`
+      : `<span class="c-mute">${e.level === 'block' ? '거래 안 함' : e.level === 'skip' ? '주문 없음' : ''}</span>`;
+    return `<div class="row ${i === 0 ? 'new' : ''}"><span class="t">${hm(e.ts)}</span><span class="chip ${cls}">${label}</span>
+      <div class="mid"><div class="s">${e.symbol ? tick(e.symbol) : '시스템'}</div><div class="r"><b>reason:</b> ${esc(d.reason || e.msg)}</div></div><span class="val">${val}</span></div>`;
+  }).join('');
+}
+
+function renderTables(s) {
+  $('open').innerHTML = !s.open.length ? '<div class="empty">보유 중인 포지션이 없어요.</div>' :
+    `<table><thead><tr><th>토큰</th><th class="n">투입</th><th class="n">평가</th><th class="n">손익</th><th class="n">현재가</th><th class="n">보유</th><th>산 이유</th></tr></thead><tbody>` +
+    s.open.map(t => `<tr><td><b>${link(t)}</b></td><td class="n">${usd(t.size_usd)}</td><td class="n">${usd(t.value)}</td><td class="n"><span class="${tone(t.pnl_usd)}">${arrow(t.pnl_usd)}</span>${signed(t.pnl_usd)} (${pct(t.pnl_pct)})</td>
+      <td class="n">${price(t.last_price)}</td><td class="n">${hold(t.opened_at, s.now)}</td><td class="y">${esc(t.entry_reason)}<br>러그 체크: ${esc(t.rug_summary)}<br>크기: ${esc(t.size_reason)}</td></tr>`).join('') + '</tbody></table>';
+  $('closed').innerHTML = !s.closed.length ? '<div class="empty">아직 끝난 거래가 없어요.</div>' :
+    `<table><thead><tr><th>시각</th><th>토큰</th><th class="n">투입</th><th class="n">손익</th><th class="n">슬리피지 (매수/매도)</th><th class="n">보유</th><th>산 이유 → 판 이유</th></tr></thead><tbody>` +
+    s.closed.map(t => `<tr><td class="n" style="text-align:left">${hms(t.closed_at)}</td><td><b>${link(t)}</b></td><td class="n">${usd(t.size_usd)}</td><td class="n"><span class="${tone(t.pnl_usd)}">${arrow(t.pnl_usd)}</span>${signed(t.pnl_usd)} (${pct(t.pnl_pct)})</td>
+      <td class="n">${Math.round(t.entry_slip_bps)} / ${Math.round(t.exit_slip_bps)} bps</td><td class="n">${hold(t.opened_at, t.closed_at)}</td><td class="y">${esc(t.entry_reason)}<br>→ ${esc(t.exit_reason)}</td></tr>`).join('') + '</tbody></table>';
+}
 
 function render(s) {
   state = s;
-  $('meta').textContent = `데이터: ${s.source} · ${s.poll_seconds}초마다 확인 · 마지막 확인 ${ago(s.now, s.last_tick)}${s.paused ? ' · 신규 진입 멈춤 상태' : ''}`;
-  $('pauseBtn').textContent = s.paused ? '신규 진입 다시 시작' : '신규 진입 멈춤';
+  const decisive = s.events.filter(e => KIND[e.level]);
   $('simNote').style.display = s.simulated ? 'block' : 'none';
   $('err').style.display = s.last_error ? 'block' : 'none';
   $('err').textContent = s.last_error ? '엔진 오류: ' + s.last_error : '';
-  renderKpis(s); renderAgents(s); renderChart(s); renderOpen(s); renderClosed(s); renderFeed(s);
+  $('pauseBtn').textContent = s.paused ? '신규 진입 다시 시작' : '신규 진입 멈춤';
+  renderHero(s, decisive); renderAgents(s, s.events[0]); renderFlow(s, decisive); renderTrade(s);
+  renderTail(s, decisive); renderResult(s); renderLog(decisive); renderTables(s);
 }
 async function refresh() {
   try { render(await (await fetch('api/state')).json()); }
-  catch (e) { $('meta').textContent = '서버에 연결할 수 없어요. 다시 시도하는 중…'; }
+  catch (e) { $('runText').textContent = '서버에 연결할 수 없어요. 다시 시도하는 중…'; }
 }
 $('pauseBtn').onclick = async () => { await fetch('api/pause', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({paused: !(state && state.paused)})}); refresh(); };
 $('resetBtn').onclick = async () => { if (confirm('가상 잔고와 모든 기록을 지우고 처음부터 다시 시작할까요?')) { await fetch('api/reset', {method: 'POST'}); refresh(); } };
 window.addEventListener('resize', () => state && renderChart(state));
-refresh(); setInterval(refresh, 3000);
+refresh(); setInterval(refresh, 2000);
 </script>
 </body>
 </html>
