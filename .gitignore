@@ -45,3 +45,7 @@ strategy/equity_chart.png
 
 # 임시 파일
 scratch/
+
+# 모의거래 터미널 기록
+*.db
+*.db-journal

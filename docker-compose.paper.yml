@@ -1,0 +1,27 @@
+# 모의거래 터미널 전용 (실거래 봇 docker-compose.yml 과 별개)
+# 실행: docker-compose -f docker-compose.paper.yml up -d
+# 접속: http://<NAS 주소>:9191
+version: '3.8'
+
+services:
+  irene-paper:
+    image: python:3.11-slim
+    container_name: irene_paper
+    working_dir: /app
+    security_opt:
+      - seccomp:unconfined
+    command: >
+      sh -c "pip install --no-cache-dir flask requests && python3 -u -m paper_terminal"
+    restart: unless-stopped
+    ports:
+      - "9191:9191"
+    environment:
+      - PAPER_HOST=0.0.0.0
+      - PAPER_SOURCE=live
+    volumes:
+      - .:/app
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>아이린 모의거래 터미널</title>
+<style>
+:root {
+  --bg: #0a0f1a; --panel: #111827; --panel2: #0e1524; --line: #1f2a3d;
+  --ink: #e8edf5; --sub: #9aa7bb; --mute: #66738a;
+  --accent: #5b9dff; --good: #2fbf8f; --bad: #f0616d; --warn: #e0a83a;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.5 -apple-system, "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", sans-serif; padding: 16px; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 14px; }
+h1 { font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+.badge { font: 700 11px var(--mono); letter-spacing: .08em; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--warn); color: var(--warn); }
+.meta { color: var(--sub); font-size: 12px; }
+.spacer { flex: 1; }
+button { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+.notice { background: var(--panel2); border: 1px solid var(--line); border-left: 3px solid var(--warn); border-radius: 6px; padding: 8px 12px; color: var(--sub); font-size: 12.5px; margin-bottom: 14px; }
+.err { border-left-color: var(--bad); color: var(--ink); display: none; }
+
+.kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 14px; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; min-width: 0; }
+.kpi .label { color: var(--sub); font-size: 12px; }
+.kpi .value { font: 600 22px var(--mono); font-variant-numeric: tabular-nums; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi .hint { color: var(--mute); font-size: 11.5px; margin-top: 2px; }
+.kpi.hero .value { font-size: 26px; }
+
+.agents { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 14px; }
+.agent { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-width: 0; }
+.agent .top { display: flex; align-items: center; gap: 6px; }
+.agent .n { font: 700 11px var(--mono); color: var(--mute); }
+.agent .name { font-weight: 700; }
+.agent .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--mute); margin-left: auto; flex: none; }
+.agent .dot.on { background: var(--good); }
+.agent .job { color: var(--mute); font-size: 11.5px; margin: 2px 0 6px; }
+.agent .status { color: var(--sub); font-size: 12px; min-height: 36px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-all; }
+.agent .foot { color: var(--mute); font-size: 11px; margin-top: 4px; }
+
+.cols { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; margin-bottom: 14px; min-width: 0; }
+.panel h2 { font-size: 13.5px; font-weight: 700; margin-bottom: 2px; }
+.panel .desc { color: var(--mute); font-size: 12px; margin-bottom: 10px; }
+.chartwrap { position: relative; }
+svg { display: block; width: 100%; height: 240px; }
+.tip { position: absolute; pointer-events: none; background: #0b1220; border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; font-size: 12px; display: none; white-space: nowrap; z-index: 2; }
+.tip b { font-family: var(--mono); }
+.scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th { text-align: left; color: var(--mute); font-weight: 500; padding: 5px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.r, th.r { text-align: right; white-space: nowrap; }
+td.why { color: var(--sub); min-width: 220px; }
+tr:last-child td { border-bottom: 0; }
+a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--mute); }
+.up { color: var(--good); } .down { color: var(--bad); }
+.empty { color: var(--mute); padding: 18px 0; text-align: center; font-size: 12.5px; }
+.feed { max-height: 760px; overflow-y: auto; }
+.ev { display: grid; grid-template-columns: 62px 1fr; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+.ev:last-child { border-bottom: 0; }
+.ev .t { color: var(--mute); font-family: var(--mono); font-size: 11.5px; padding-top: 1px; }
+.ev .tag { display: inline-block; font-size: 11px; font-weight: 700; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-right: 6px; color: var(--sub); }
+.ev .sym { font-weight: 700; margin-right: 4px; }
+.ev .msg { color: var(--sub); word-break: break-word; }
+.ev.buy .tag, .ev.win .tag { border-color: var(--good); color: var(--good); }
+.ev.loss .tag, .ev.block .tag { border-color: var(--bad); color: var(--bad); }
+.ev.warn .tag, .ev.skip .tag { border-color: var(--warn); color: var(--warn); }
+
+@media (max-width: 1100px) { .kpis, .agents { grid-template-columns: repeat(3, 1fr); } .cols { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) { body { padding: 10px; } .kpis, .agents { grid-template-columns: repeat(2, 1fr); } .kpi .value { font-size: 18px; } .kpi.hero .value { font-size: 20px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>아이린 모의거래 터미널</h1>
+  <span class="badge">PAPER · 모의거래</span>
+  <span class="meta" id="meta">연결 중…</span>
+  <span class="spacer"></span>
+  <button id="pauseBtn">신규 진입 멈춤</button>
+  <button id="resetBtn">처음부터 다시</button>
+</header>
+<div class="notice">가상 잔고로만 거래하는 연습용 화면이에요. 실제 주문은 어디에도 나가지 않고, 지갑·개인키·API 키도 쓰지 않아요. 체결가에는 가격 충격·DEX 수수료·네트워크 수수료가 반영돼 있어요.</div>
+<div class="notice" id="simNote" style="display:none">지금은 <b>지어낸 가상 시장</b>으로 돌아가는 중이에요. 화면과 동작을 구경하기 위한 것이라, 여기서 나온 수익·손실은 실제 시장에서의 성과와 아무 관련이 없어요.</div>
+<div class="notice err" id="err"></div>
+
+<section class="kpis" id="kpis"></section>
+<section class="agents" id="agents"></section>
+
+<div class="cols">
+  <div>
+    <div class="panel">
+      <h2>수익 곡선</h2>
+      <div class="desc">거래가 하나 끝날 때마다 점이 찍혀요. 점선은 시작 잔고예요.</div>
+      <div class="chartwrap"><svg id="chart" role="img" aria-label="자산 변화 그래프"></svg><div class="tip" id="tip"></div></div>
+    </div>
+    <div class="panel">
+      <h2>보유 중인 포지션</h2>
+      <div class="desc">평가 금액은 "지금 팔면 실제로 손에 쥐는 돈" 기준이에요.</div>
+      <div class="scroll" id="open"></div>
+    </div>
+    <div class="panel">
+      <h2>끝난 거래</h2>
+      <div class="desc">모든 거래에 산 이유와 판 이유가 남아요.</div>
+      <div class="scroll" id="closed"></div>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>활동 로그</h2>
+    <div class="desc">에이전트들이 내린 판단과 그 이유 (최근 80건)</div>
+    <div class="feed" id="feed"></div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const usd = (v, d = 2) => v == null ? '–' : (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString('en-US', {minimumFractionDigits: d, maximumFractionDigits: d});
+const signed = (v, d = 2) => v == null ? '–' : (v >= 0 ? '+' : '-') + '$' + Math.abs(v).toLocaleString('en-US', {minimumFractionDigits: d, maximumFractionDigits: d});
+const pct = v => v == null ? '–' : (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+const arrow = v => v > 0 ? '<span class="up">▲</span> ' : v < 0 ? '<span class="down">▼</span> ' : '';
+const clock = ts => ts ? new Date(ts * 1000).toLocaleTimeString('en-GB') : '–';
+const price = v => v == null ? '–' : '$' + Number(v).toPrecision(4);
+function ago(now, ts) {
+  if (!ts) return '아직 없음';
+  const s = Math.max(0, Math.round(now - ts));
+  return s < 60 ? s + '초 전' : s < 3600 ? Math.floor(s / 60) + '분 전' : Math.floor(s / 3600) + '시간 전';
+}
+function hold(a, b) { const m = Math.max(0, Math.round((b - a) / 60)); return m < 60 ? m + '분' : Math.floor(m / 60) + '시간 ' + (m % 60) + '분'; }
+const link = t => /^https:\/\/dexscreener\.com\//.test(t.url || '') ? `<a href="${esc(t.url)}" target="_blank" rel="noopener noreferrer">${esc(t.symbol)}</a>` : `<b>${esc(t.symbol)}</b>`;
+const AGENT = {scanner: '스캐너', rug: '러그 체크', sizer: '사이저', executor: '실행기', logger: '로거', equity: '수익 곡선', system: '시스템'};
+
+let state = null;
+
+function renderKpis(s) {
+  const st = s.stats;
+  const cells = [
+    ['hero', '현재 자산', usd(s.equity), `현금 ${usd(s.cash)}`],
+    ['', '시작 잔고', usd(s.start_balance), '가상 금액'],
+    ['', '총 손익', arrow(s.pnl_usd) + signed(s.pnl_usd), pct(s.pnl_pct)],
+    ['', '승률', st.win_rate == null ? '–' : st.win_rate.toFixed(0) + '%', `${st.trades}건 중 ${st.wins}건 수익`],
+    ['', '최대 낙폭', st.max_drawdown ? '-' + st.max_drawdown.toFixed(1) + '%' : '0.0%', '고점 대비 가장 크게 빠진 폭'],
+    ['', '낸 수수료', usd(st.fees), '수수료 합계 (끝난 거래)'],
+  ];
+  $('kpis').innerHTML = cells.map(([cls, l, v, h]) => `<div class="kpi ${cls}"><div class="label">${l}</div><div class="value">${v}</div><div class="hint">${h}</div></div>`).join('');
+}
+
+function renderAgents(s) {
+  $('agents').innerHTML = s.agents.map((a, i) => {
+    const live = a.last_ts && s.now - a.last_ts < Math.max(120, s.poll_seconds * 4);
+    return `<div class="agent"><div class="top"><span class="n">${i + 1}</span><span class="name">${esc(a.title)}</span><span class="dot ${live ? 'on' : ''}" title="${live ? '방금 일함' : '대기 중'}"></span></div>
+      <div class="job">${esc(a.job)}</div><div class="status">${esc(a.status)}</div>
+      <div class="foot">${ago(s.now, a.last_ts)} · 누적 ${a.count}건</div></div>`;
+  }).join('');
+}
+
+function renderOpen(s) {
+  if (!s.open.length) { $('open').innerHTML = '<div class="empty">지금은 보유 중인 포지션이 없어요.</div>'; return; }
+  $('open').innerHTML = `<table><thead><tr><th>토큰</th><th class="r">투입</th><th class="r">평가</th><th class="r">손익</th><th class="r">현재가</th><th class="r">보유</th><th>산 이유</th></tr></thead><tbody>` +
+    s.open.map(t => `<tr><td>${link(t)}</td><td class="r num">${usd(t.size_usd)}</td><td class="r num">${usd(t.value)}</td>
+      <td class="r num">${arrow(t.pnl_usd)}${signed(t.pnl_usd)} (${pct(t.pnl_pct)})</td><td class="r num">${price(t.last_price)}</td>
+      <td class="r">${hold(t.opened_at, s.now)}</td><td class="why">${esc(t.entry_reason)}<br>러그 체크: ${esc(t.rug_summary)}<br>크기: ${esc(t.size_reason)}</td></tr>`).join('') + '</tbody></table>';
+}
+
+function renderClosed(s) {
+  if (!s.closed.length) { $('closed').innerHTML = '<div class="empty">아직 끝난 거래가 없어요. 조건에 맞는 토큰이 나타나면 여기에 기록돼요.</div>'; return; }
+  $('closed').innerHTML = `<table><thead><tr><th>시각</th><th>토큰</th><th class="r">투입</th><th class="r">손익</th><th class="r">슬리피지(매수/매도)</th><th class="r">보유</th><th>산 이유 → 판 이유</th></tr></thead><tbody>` +
+    s.closed.map(t => `<tr><td class="num">${clock(t.closed_at)}</td><td>${link(t)}</td><td class="r num">${usd(t.size_usd)}</td>
+      <td class="r num">${arrow(t.pnl_usd)}${signed(t.pnl_usd)} (${pct(t.pnl_pct)})</td>
+      <td class="r num">${Math.round(t.entry_slip_bps)} / ${Math.round(t.exit_slip_bps)} bps</td><td class="r">${hold(t.opened_at, t.closed_at)}</td>
+      <td class="why">${esc(t.entry_reason)}<br>→ ${esc(t.exit_reason)}</td></tr>`).join('') + '</tbody></table>';
+}
+
+function renderFeed(s) {
+  if (!s.events.length) { $('feed').innerHTML = '<div class="empty">아직 기록이 없어요.</div>'; return; }
+  $('feed').innerHTML = s.events.map(e => `<div class="ev ${esc(e.level)}"><div class="t">${clock(e.ts)}</div><div><span class="tag">${esc(AGENT[e.agent] || e.agent)}</span>${e.symbol ? `<span class="sym">${esc(e.symbol)}</span>` : ''}<span class="msg">${esc(e.msg)}</span></div></div>`).join('');
+}
+
+/* ── 수익 곡선: 거래가 끝날 때만 값이 바뀌므로 계단형 선 ── */
+let plot = null;
+function renderChart(s) {
+  const svg = $('chart'), W = svg.clientWidth || 600, H = 240, m = {l: 58, r: 14, t: 12, b: 24};
+  const pts = s.curve.map(p => ({t: p.ts, v: p.equity, note: p.note})).concat([{t: Math.max(s.now, s.curve.at(-1)?.t ?? s.now), v: s.equity, note: '현재 (보유분 평가 포함)'}]);
+  const t0 = pts[0].t, t1 = Math.max(pts.at(-1).t, t0 + 60);
+  let lo = Math.min(s.start_balance, ...pts.map(p => p.v)), hi = Math.max(s.start_balance, ...pts.map(p => p.v));
+  const pad = Math.max((hi - lo) * 0.15, hi * 0.01, 0.05); lo -= pad; hi += pad;
+  const x = t => m.l + (t - t0) / (t1 - t0) * (W - m.l - m.r), y = v => m.t + (hi - v) / (hi - lo) * (H - m.t - m.b);
+  let g = '';
+  for (let i = 0; i <= 4; i++) {
+    const v = lo + (hi - lo) * i / 4;
+    g += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" stroke="#1f2a3d"/><text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end" fill="#66738a" font-size="11" font-family="ui-monospace,Menlo,monospace">${usd(v)}</text>`;
+  }
+  g += `<text x="${m.l}" y="${H - 6}" fill="#66738a" font-size="11">${clock(t0)}</text><text x="${W - m.r}" y="${H - 6}" text-anchor="end" fill="#66738a" font-size="11">${clock(t1)}</text>`;
+  g += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(s.start_balance)}" y2="${y(s.start_balance)}" stroke="#9aa7bb" stroke-dasharray="4 4"/>`;
+  let d = `M${x(pts[0].t)},${y(pts[0].v)}`;
+  for (let i = 1; i < pts.length; i++) d += `H${x(pts[i].t)}V${y(pts[i].v)}`;
+  g += `<path d="${d}" fill="none" stroke="#5b9dff" stroke-width="2" stroke-linejoin="round"/>`;
+  const last = pts.at(-1);
+  g += `<circle cx="${x(last.t)}" cy="${y(last.v)}" r="4" fill="#5b9dff" stroke="#111827" stroke-width="2"/>`;
+  g += `<g id="cross" style="display:none"><line id="cx" y1="${m.t}" y2="${H - m.b}" stroke="#9aa7bb" stroke-width="1"/><circle id="cd" r="4.5" fill="#5b9dff" stroke="#111827" stroke-width="2"/></g>`;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = g;
+  plot = {pts, x, y, W, m};
+}
+function hover(ev) {
+  if (!plot) return;
+  const r = $('chart').getBoundingClientRect(), px = (ev.clientX - r.left) * plot.W / r.width;
+  let p = plot.pts[0];
+  for (const q of plot.pts) if (plot.x(q.t) <= px) p = q;   // 계단형: 커서 왼쪽의 마지막 점
+  const cx = Math.min(Math.max(px, plot.m.l), plot.W - plot.m.r);
+  $('cross').style.display = '';
+  $('cx').setAttribute('x1', cx); $('cx').setAttribute('x2', cx);
+  $('cd').setAttribute('cx', cx); $('cd').setAttribute('cy', plot.y(p.v));
+  const tip = $('tip');
+  tip.innerHTML = `<b>${usd(p.v)}</b><br>${esc(p.note)}<br><span style="color:#66738a">${clock(p.t)}</span>`;
+  tip.style.display = 'block';
+  const left = cx * r.width / plot.W;
+  tip.style.left = (left > r.width / 2 ? left - tip.offsetWidth - 12 : left + 12) + 'px';
+  tip.style.top = '8px';
+}
+$('chart').addEventListener('pointermove', hover);
+$('chart').addEventListener('pointerleave', () => { $('tip').style.display = 'none'; if ($('cross')) $('cross').style.display = 'none'; });
+
+function render(s) {
+  state = s;
+  $('meta').textContent = `데이터: ${s.source} · ${s.poll_seconds}초마다 확인 · 마지막 확인 ${ago(s.now, s.last_tick)}${s.paused ? ' · 신규 진입 멈춤 상태' : ''}`;
+  $('pauseBtn').textContent = s.paused ? '신규 진입 다시 시작' : '신규 진입 멈춤';
+  $('simNote').style.display = s.simulated ? 'block' : 'none';
+  $('err').style.display = s.last_error ? 'block' : 'none';
+  $('err').textContent = s.last_error ? '엔진 오류: ' + s.last_error : '';
+  renderKpis(s); renderAgents(s); renderChart(s); renderOpen(s); renderClosed(s); renderFeed(s);
+}
+async function refresh() {
+  try { render(await (await fetch('api/state')).json()); }
+  catch (e) { $('meta').textContent = '서버에 연결할 수 없어요. 다시 시도하는 중…'; }
+}
+$('pauseBtn').onclick = async () => { await fetch('api/pause', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({paused: !(state && state.paused)})}); refresh(); };
+$('resetBtn').onclick = async () => { if (confirm('가상 잔고와 모든 기록을 지우고 처음부터 다시 시작할까요?')) { await fetch('api/reset', {method: 'POST'}); refresh(); } };
+window.addEventListener('resize', () => state && renderChart(state));
+refresh(); setInterval(refresh, 3000);
+</script>
+</body>
+</html>
